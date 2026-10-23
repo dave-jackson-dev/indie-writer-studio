@@ -7,16 +7,26 @@
     "test": "nx run-many -t test",
     "typecheck": "nx run-many -t typecheck",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "indie-writer": "nx build indie-writer 1>&2 && node dist/apps/indie-writer/main.js"
   },
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@nestjs/common": "^11.2.8",
+    "@nestjs/core": "^11.2.8",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/platform-express": "^11.2.8",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
   "devDependencies": {
     "@nx/js": "24.0.0",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
     "@swc/helpers": "0.5.18",
+    "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
     "nx": "24.0.0",
     "prettier": "^3.8.1",
     "tslib": "^2.3.0",

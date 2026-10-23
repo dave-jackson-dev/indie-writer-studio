@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "test": "nx run-many -t test",
     "typecheck": "nx run-many -t typecheck",
     "format": "prettier --write .",

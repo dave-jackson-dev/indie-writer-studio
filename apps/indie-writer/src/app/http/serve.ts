@@ -11,7 +11,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 
 import { EnvelopeExceptionFilter } from './envelope-exception.filter.js';
-import { COMPONENTS } from '../components.js';
+import { COMPONENTS, type Component } from '../components.js';
 import { HttpModule } from './http.module.js';
 
 export interface HttpOptions {
@@ -21,6 +21,8 @@ export interface HttpOptions {
   port?: number;
   /** Extra allowed CORS origins, beside any localhost or 127.0.0.1 origin. */
   corsOrigins?: string[];
+  /** What the root composes. Defaults to the real components. */
+  components?: readonly Component[];
 }
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
@@ -46,7 +48,7 @@ export interface RunningServer {
 /** Starts the HTTP transport and resolves once it is listening. */
 export async function startHttpServer(options: HttpOptions = {}): Promise<RunningServer> {
   const app = await NestFactory.create<NestExpressApplication>(
-    HttpModule.forComponents(COMPONENTS),
+    HttpModule.forComponents(options.components ?? COMPONENTS),
     { logger: ['error'] },
   );
   const allowed = options.corsOrigins ?? [];

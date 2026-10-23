@@ -17,6 +17,15 @@
     "paths": {
       "@indie-writer-studio/cqrs-tool-runtime": [
         "./libs/shared/cqrs-tool-runtime/src/index.ts"
+      ],
+      "@indie-writer-studio/works-domain": [
+        "./libs/works/domain/src/index.ts"
+      ],
+      "@indie-writer-studio/works-application": [
+        "./libs/works/application/src/index.ts"
+      ],
+      "@indie-writer-studio/works-infrastructure": [
+        "./libs/works/infrastructure/src/index.ts"
       ]
     },
     "experimentalDecorators": true,

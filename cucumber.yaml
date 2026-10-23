@@ -1,0 +1,11 @@
+# Acceptance suite: Gherkin in features/, written with Cucumber Screenplay.
+# Default assembly is in-process (real Nest buses, no transport). To run the same scenarios against
+# the built binary: IWS_ASSEMBLY=cli|repl|sidecar|http (build indie-writer first).
+default:
+  paths:
+    - features/**/*.feature
+  import:
+    - features/support/**/*.ts
+    - features/steps/**/*.ts
+  format:
+    - progress

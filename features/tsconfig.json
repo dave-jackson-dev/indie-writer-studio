@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../dist/out-tsc/acceptance",
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rootDir": ".."
+  },
+  "include": ["support/**/*.ts", "steps/**/*.ts", "screenplay/**/*.ts"]
+}

@@ -12,7 +12,7 @@ import { NestFactory } from '@nestjs/core';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import { AppModule } from './app.module.js';
-import { COMPONENTS } from './components.js';
+import { COMPONENTS, type Component } from './components.js';
 import { startHttpServer } from './http/serve.js';
 import { operationsFor } from './operations.js';
 
@@ -24,14 +24,14 @@ export interface Tool {
 }
 
 /** Boots the Nest context and builds the runtime over its buses. */
-export async function createTool(): Promise<Tool> {
-  const context = await NestFactory.createApplicationContext(AppModule.forComponents(COMPONENTS), {
+export async function createTool(components: readonly Component[] = COMPONENTS): Promise<Tool> {
+  const context = await NestFactory.createApplicationContext(AppModule.forComponents(components), {
     logger: false,
   });
   const runtime = new CqrsToolRuntime({
     commandBus: context.get(CommandBus),
     queryBus: context.get(QueryBus),
-    operations: operationsFor(COMPONENTS),
+    operations: operationsFor(components),
   });
   return { runtime, close: () => context.close() };
 }
@@ -47,13 +47,17 @@ const defaultIo: ToolIo = {
  * `--sidecar` speaks newline-delimited JSON on stdin and stdout;
  * anything else is one operation, as on the CLI.
  */
-export async function run(argv: readonly string[], io: ToolIo = defaultIo): Promise<number> {
+export async function run(
+  argv: readonly string[],
+  io: ToolIo = defaultIo,
+  components: readonly Component[] = COMPONENTS,
+): Promise<number> {
   if (argv.length === 0 || argv.includes('--help') || argv.includes('-h')) {
-    io.stdout(formatOperationsHelp(operationsFor(COMPONENTS), EXECUTABLE));
+    io.stdout(formatOperationsHelp(operationsFor(components), EXECUTABLE));
     return 0;
   }
-  if (argv[0] === '--http') return serveHttp(argv.slice(1), io);
-  const tool = await createTool();
+  if (argv[0] === '--http') return serveHttp(argv.slice(1), io, components);
+  const tool = await createTool(components);
   try {
     if (argv[0] === '--repl') {
       await runInteractiveRepl(tool.runtime, {
@@ -103,13 +107,17 @@ export function parseHttpArgs(args: readonly string[]): HttpArgs {
  * `--http [--host H] [--port N] [--cors-origin O]...`: serves until interrupted. Prints one line,
  * `{"event":"listening","url":"..."}`, once ready, so a parent process can find a port-0 server.
  */
-async function serveHttp(args: readonly string[], io: ToolIo): Promise<number> {
+async function serveHttp(
+  args: readonly string[],
+  io: ToolIo,
+  components: readonly Component[],
+): Promise<number> {
   const parsed = parseHttpArgs(args);
   if (!parsed.ok) {
     io.stderr(`${EXECUTABLE}: ${parsed.message}`);
     return 2;
   }
-  const server = await startHttpServer(parsed);
+  const server = await startHttpServer({ ...parsed, components });
   io.stdout(JSON.stringify({ event: 'listening', url: server.url }));
   await new Promise<void>((resolve) => {
     for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => resolve());

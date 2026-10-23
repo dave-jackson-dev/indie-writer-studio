@@ -40,6 +40,9 @@ their operation descriptors unchanged.
 - Adding a component is one entry in `COMPONENTS`; the walking skeleton ships with none.
 - The root is a single deployable. A component that must scale separately can be run on its own
   (Decision 3) without a redesign.
+- The Writer app is a single-user Electron app, so an **IPC transport** will join CLI, REPL, sidecar and
+  HTTP once the Electron shell exists. It is one more thin adapter over the same runtime and operation
+  list, and the acceptance suite gains it as one more `OperateApp` assembly. Not built yet.
 - Nothing here decides authentication: the guard ADR-001 requires (OIDC with PKCE) is a later
   decision.
 

@@ -1,0 +1,26 @@
+{
+  "name": "works-application",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/works/application/src",
+  "projectType": "library",
+  "tags": ["scope:works", "type:application"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "vitest run",
+        "cwd": "libs/works/application"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "commands": ["tsc -p tsconfig.lib.json --noEmit", "tsc -p tsconfig.spec.json --noEmit"],
+        "cwd": "libs/works/application",
+        "parallel": true
+      }
+    }
+  }
+}

@@ -8,6 +8,15 @@
     },
     {
       "path": "./apps/indie-writer"
+    },
+    {
+      "path": "./libs/works/domain"
+    },
+    {
+      "path": "./libs/works/application"
+    },
+    {
+      "path": "./libs/works/infrastructure"
     }
   ],
   "compilerOptions": {}

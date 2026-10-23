@@ -16,9 +16,6 @@ import {
   type ManuscriptNode,
 } from './manuscript.js';
 
-const NOW = '2026-11-01T10:00:00.000Z';
-const LATER = '2026-11-02T10:00:00.000Z';
-
 const fail = (run: () => unknown): ManuscriptDomainError => {
   try {
     run();
@@ -34,7 +31,7 @@ const add = (
   kind: string,
   title: string,
   where: { parentId?: string; matter?: string; position?: number; body?: string } = {},
-): Manuscript => addNode(manuscript, { id: `n${++counter}`, kind, title, ...where }, LATER);
+): Manuscript => addNode(manuscript, { id: `n${++counter}`, kind, title, ...where });
 
 /** Ids of titles, in reading order, to let tests refer to nodes by name. */
 const idOf = (manuscript: Manuscript, title: string): string => {
@@ -67,17 +64,33 @@ describe('parseWorkId', () => {
 
 describe('emptyManuscript', () => {
   it('has three empty matters', () => {
-    expect(emptyManuscript('w1', NOW)).toEqual({
+    expect(emptyManuscript('w1')).toEqual({
       workId: 'w1',
       front: [],
       main: [],
       back: [],
-      updatedAt: NOW,
     });
   });
 
   it('refuses an unsafe work id', () => {
-    expect(fail(() => emptyManuscript('../x', NOW)).code).toBe('INVALID_WORK_ID');
+    expect(fail(() => emptyManuscript('../x')).code).toBe('INVALID_WORK_ID');
+  });
+});
+
+describe('a manuscript carries no timestamp', () => {
+  it('has only its work id and the three matters, however it was changed', () => {
+    const empty = emptyManuscript('w1');
+    expect(Object.keys(empty).sort()).toEqual(['back', 'front', 'main', 'workId']);
+    const changed = add(empty, 'chapter', 'One');
+    expect(Object.keys(changed).sort()).toEqual(['back', 'front', 'main', 'workId']);
+    const updated = updateNode(changed, idOf(changed, 'One'), { body: 'x' });
+    expect(Object.keys(updated).sort()).toEqual(['back', 'front', 'main', 'workId']);
+    expect(Object.keys(removeNode(updated, idOf(updated, 'One'))).sort()).toEqual([
+      'back',
+      'front',
+      'main',
+      'workId',
+    ]);
   });
 });
 
@@ -93,14 +106,13 @@ describe('wordCount', () => {
 });
 
 describe('addNode', () => {
-  const base = emptyManuscript('w1', NOW);
+  const base = emptyManuscript('w1');
 
   it('adds a node with a trimmed title and an empty body to the main matter by default', () => {
     const m = add(base, 'chapter', '  One  ');
     expect(m.main).toEqual([
       { id: expect.any(String), kind: 'chapter', title: 'One', body: '', children: [] },
     ]);
-    expect(m.updatedAt).toBe(LATER);
   });
 
   it('keeps the body exactly as written', () => {
@@ -217,8 +229,8 @@ describe('addNode', () => {
   });
 
   it('refuses a duplicate id', () => {
-    const m = addNode(base, { id: 'same', kind: 'chapter', title: 'A' }, NOW);
-    expect(fail(() => addNode(m, { id: 'same', kind: 'chapter', title: 'B' }, NOW)).code).toBe(
+    const m = addNode(base, { id: 'same', kind: 'chapter', title: 'A' });
+    expect(fail(() => addNode(m, { id: 'same', kind: 'chapter', title: 'B' })).code).toBe(
       'INVALID_NODE',
     );
   });
@@ -244,62 +256,57 @@ const sceneUnderChapter = (base: Manuscript): Manuscript => {
 
 describe('updateNode', () => {
   const base = ((): Manuscript => {
-    const withChapter = add(emptyManuscript('w1', NOW), 'chapter', 'One');
+    const withChapter = add(emptyManuscript('w1'), 'chapter', 'One');
     return add(withChapter, 'scene', 'Dawn', { parentId: idOf(withChapter, 'One') });
   })();
 
   it('changes only what is given and stamps the manuscript', () => {
     const id = idOf(base, 'One');
-    const next = updateNode(base, id, { body: 'some words' }, NOW);
+    const next = updateNode(base, id, { body: 'some words' });
     expect(findNode(next, id)).toMatchObject({ title: 'One', body: 'some words' });
     expect(findNode(next, id)?.children).toHaveLength(1);
-    expect(next.updatedAt).toBe(NOW);
   });
 
   it('renames with the same validation as adding', () => {
     const id = idOf(base, 'One');
-    expect(findNode(updateNode(base, id, { title: ' Prologue ' }, NOW), id)?.title).toBe(
-      'Prologue',
-    );
-    expect(fail(() => updateNode(base, id, { title: '  ' }, NOW)).code).toBe('INVALID_NODE');
+    expect(findNode(updateNode(base, id, { title: ' Prologue ' }), id)?.title).toBe('Prologue');
+    expect(fail(() => updateNode(base, id, { title: '  ' })).code).toBe('INVALID_NODE');
   });
 
   it('can clear a body', () => {
     const id = idOf(base, 'One');
-    const written = updateNode(base, id, { body: 'x' }, NOW);
-    expect(findNode(updateNode(written, id, { body: '' }, NOW), id)?.body).toBe('');
+    const written = updateNode(base, id, { body: 'x' });
+    expect(findNode(updateNode(written, id, { body: '' }), id)?.body).toBe('');
   });
 
   it('refuses an unknown node', () => {
-    expect(fail(() => updateNode(base, 'nope', { title: 'x' }, NOW)).code).toBe('NODE_NOT_FOUND');
+    expect(fail(() => updateNode(base, 'nope', { title: 'x' })).code).toBe('NODE_NOT_FOUND');
   });
 
   it('does not change the manuscript it was given', () => {
-    updateNode(base, idOf(base, 'One'), { title: 'Other' }, NOW);
+    updateNode(base, idOf(base, 'One'), { title: 'Other' });
     expect(base.main[0]?.title).toBe('One');
   });
 });
 
 describe('removeNode', () => {
   it('removes a node and everything beneath it', () => {
-    let m = add(emptyManuscript('w1', NOW), 'chapter', 'One');
+    let m = add(emptyManuscript('w1'), 'chapter', 'One');
     m = add(m, 'scene', 'Dawn', { parentId: idOf(m, 'One') });
     m = add(m, 'chapter', 'Two');
-    const next = removeNode(m, idOf(m, 'One'), NOW);
+    const next = removeNode(m, idOf(m, 'One'));
     expect(titles(next.main)).toEqual(['Two']);
     expect(findNode(next, idOf(m, 'Dawn'))).toBeUndefined();
   });
 
   it('refuses an unknown node', () => {
-    expect(fail(() => removeNode(emptyManuscript('w1', NOW), 'nope', NOW)).code).toBe(
-      'NODE_NOT_FOUND',
-    );
+    expect(fail(() => removeNode(emptyManuscript('w1'), 'nope')).code).toBe('NODE_NOT_FOUND');
   });
 });
 
 describe('moveNode', () => {
   const build = (): Manuscript => {
-    let m = emptyManuscript('w1', NOW);
+    let m = emptyManuscript('w1');
     m = add(m, 'part', 'Part One');
     m = add(m, 'part', 'Part Two');
     m = add(m, 'chapter', 'Wanderer', { parentId: idOf(m, 'Part One') });
@@ -310,7 +317,7 @@ describe('moveNode', () => {
 
   it('moves a node under another parent, with its subtree', () => {
     const m = build();
-    const next = moveNode(m, idOf(m, 'Wanderer'), { parentId: idOf(m, 'Part Two') }, NOW);
+    const next = moveNode(m, idOf(m, 'Wanderer'), { parentId: idOf(m, 'Part Two') });
     expect(findNode(next, idOf(m, 'Part One'))?.children).toEqual([]);
     const moved = findNode(next, idOf(m, 'Part Two'))?.children[0];
     expect(moved?.title).toBe('Wanderer');
@@ -319,30 +326,26 @@ describe('moveNode', () => {
 
   it('moves a node to another matter', () => {
     const m = build();
-    const next = moveNode(m, idOf(m, 'Epilogue'), { matter: 'back' }, NOW);
+    const next = moveNode(m, idOf(m, 'Epilogue'), { matter: 'back' });
     expect(titles(next.back)).toEqual(['Epilogue']);
     expect(titles(next.main)).toEqual(['Part One', 'Part Two']);
   });
 
   it('reads the position as an index among the destination siblings after the node has left', () => {
-    let m = emptyManuscript('w1', NOW);
+    let m = emptyManuscript('w1');
     for (const t of ['A', 'B', 'C']) m = add(m, 'chapter', t);
-    expect(titles(moveNode(m, idOf(m, 'A'), { matter: 'main', position: 2 }, NOW).main)).toEqual([
+    expect(titles(moveNode(m, idOf(m, 'A'), { matter: 'main', position: 2 }).main)).toEqual([
       'B',
       'C',
       'A',
     ]);
-    expect(titles(moveNode(m, idOf(m, 'C'), { matter: 'main', position: 0 }, NOW).main)).toEqual([
+    expect(titles(moveNode(m, idOf(m, 'C'), { matter: 'main', position: 0 }).main)).toEqual([
       'C',
       'A',
       'B',
     ]);
-    expect(titles(moveNode(m, idOf(m, 'B'), { matter: 'main' }, NOW).main)).toEqual([
-      'A',
-      'C',
-      'B',
-    ]);
-    expect(fail(() => moveNode(m, idOf(m, 'A'), { matter: 'main', position: 3 }, NOW)).code).toBe(
+    expect(titles(moveNode(m, idOf(m, 'B'), { matter: 'main' }).main)).toEqual(['A', 'C', 'B']);
+    expect(fail(() => moveNode(m, idOf(m, 'A'), { matter: 'main', position: 3 })).code).toBe(
       'INVALID_PLACEMENT',
     );
   });
@@ -350,39 +353,39 @@ describe('moveNode', () => {
   it('refuses a move into itself or beneath itself', () => {
     const m = build();
     expect(
-      fail(() => moveNode(m, idOf(m, 'Part One'), { parentId: idOf(m, 'Part One') }, NOW)).code,
+      fail(() => moveNode(m, idOf(m, 'Part One'), { parentId: idOf(m, 'Part One') })).code,
     ).toBe('INVALID_PLACEMENT');
-    expect(
-      fail(() => moveNode(m, idOf(m, 'Part One'), { parentId: idOf(m, 'Dawn') }, NOW)).code,
-    ).toBe('INVALID_PLACEMENT');
+    expect(fail(() => moveNode(m, idOf(m, 'Part One'), { parentId: idOf(m, 'Dawn') })).code).toBe(
+      'INVALID_PLACEMENT',
+    );
   });
 
   it('refuses a move that breaks the nesting rules', () => {
     const m = build();
-    expect(fail(() => moveNode(m, idOf(m, 'Dawn'), { matter: 'main' }, NOW)).code).toBe(
+    expect(fail(() => moveNode(m, idOf(m, 'Dawn'), { matter: 'main' })).code).toBe(
       'INVALID_PLACEMENT',
     );
-    expect(fail(() => moveNode(m, idOf(m, 'Part Two'), { matter: 'front' }, NOW)).code).toBe(
+    expect(fail(() => moveNode(m, idOf(m, 'Part Two'), { matter: 'front' })).code).toBe(
       'INVALID_PLACEMENT',
     );
   });
 
   it('refuses a move that would make the subtree deeper than six levels', () => {
-    let m = add(emptyManuscript('w1', NOW), 'chapter', 'L1');
+    let m = add(emptyManuscript('w1'), 'chapter', 'L1');
     for (const level of [2, 3, 4, 5, 6])
       m = add(m, 'section', `L${level}`, { parentId: idOf(m, `L${level - 1}`) });
     m = add(m, 'chapter', 'Other');
     m = add(m, 'section', 'Branch', { parentId: idOf(m, 'Other') });
     m = add(m, 'section', 'Twig', { parentId: idOf(m, 'Branch') });
-    expect(fail(() => moveNode(m, idOf(m, 'Branch'), { parentId: idOf(m, 'L5') }, NOW)).code).toBe(
+    expect(fail(() => moveNode(m, idOf(m, 'Branch'), { parentId: idOf(m, 'L5') })).code).toBe(
       'INVALID_PLACEMENT',
     );
   });
 
   it('refuses an unknown node or destination', () => {
     const m = build();
-    expect(fail(() => moveNode(m, 'nope', { matter: 'back' }, NOW)).code).toBe('NODE_NOT_FOUND');
-    expect(fail(() => moveNode(m, idOf(m, 'Epilogue'), { parentId: 'nope' }, NOW)).code).toBe(
+    expect(fail(() => moveNode(m, 'nope', { matter: 'back' })).code).toBe('NODE_NOT_FOUND');
+    expect(fail(() => moveNode(m, idOf(m, 'Epilogue'), { parentId: 'nope' })).code).toBe(
       'NODE_NOT_FOUND',
     );
   });
@@ -390,15 +393,15 @@ describe('moveNode', () => {
   it('leaves the manuscript it was given unchanged, also when it refuses', () => {
     const m = build();
     const before = structuredClone(m);
-    moveNode(m, idOf(m, 'Epilogue'), { matter: 'back' }, NOW);
-    expect(() => moveNode(m, idOf(m, 'Dawn'), { matter: 'main' }, NOW)).toThrow();
+    moveNode(m, idOf(m, 'Epilogue'), { matter: 'back' });
+    expect(() => moveNode(m, idOf(m, 'Dawn'), { matter: 'main' })).toThrow();
     expect(m).toEqual(before);
   });
 });
 
 describe('outlineOf', () => {
   it('lists the matters with words per node and in all, and leaves out the text itself', () => {
-    let m = emptyManuscript('w1', NOW);
+    let m = emptyManuscript('w1');
     m = add(m, 'chapter', 'One', { body: 'one two three' });
     m = add(m, 'scene', 'Dawn', { parentId: idOf(m, 'One'), body: 'four five' });
     m = add(m, 'chapter', 'Dedication', { matter: 'front', body: 'for you' });
@@ -412,7 +415,7 @@ describe('outlineOf', () => {
   });
 
   it('is empty for a new manuscript', () => {
-    expect(outlineOf(emptyManuscript('w1', NOW))).toEqual({
+    expect(outlineOf(emptyManuscript('w1'))).toEqual({
       front: [],
       main: [],
       back: [],
@@ -423,11 +426,11 @@ describe('outlineOf', () => {
 
 describe('getNode', () => {
   it('returns the node with its text and children', () => {
-    const m = add(emptyManuscript('w1', NOW), 'chapter', 'One', { body: 'hello' });
+    const m = add(emptyManuscript('w1'), 'chapter', 'One', { body: 'hello' });
     expect(getNode(m, idOf(m, 'One'))).toMatchObject({ title: 'One', body: 'hello', children: [] });
   });
 
   it('refuses an unknown node as NODE_NOT_FOUND', () => {
-    expect(fail(() => getNode(emptyManuscript('w1', NOW), 'nope')).code).toBe('NODE_NOT_FOUND');
+    expect(fail(() => getNode(emptyManuscript('w1'), 'nope')).code).toBe('NODE_NOT_FOUND');
   });
 });

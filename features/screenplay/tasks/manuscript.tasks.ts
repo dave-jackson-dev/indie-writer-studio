@@ -88,3 +88,13 @@ export const addNodeToWorkId =
   (workId: string, kind: string, title: string, matter: string): Task =>
   (actor) =>
     operate('manuscript.node.add', { 'work-id': workId, kind, title, matter })(actor);
+
+/** The Author notes a Work's id, for after the Work has gone and can no longer be found by title. */
+export const noteWorkId =
+  (workTitle: string): ((actor: Author) => Promise<void>) =>
+  async (actor) => {
+    actor.remember('noted-work-id', await idOf(actor, workTitle));
+  };
+
+export const outlineOfNotedWork = (): Task => async (actor) =>
+  outlineOfWorkId(actor.recall<string>('noted-work-id'))(actor);

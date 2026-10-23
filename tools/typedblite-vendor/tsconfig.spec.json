@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/typedblite-vendor-spec",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

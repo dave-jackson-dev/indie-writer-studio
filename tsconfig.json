@@ -28,6 +28,12 @@
       "path": "./libs/manuscript/infrastructure"
     },
     {
+      "path": "./libs/shared/typedblite"
+    },
+    {
+      "path": "./tools/typedblite-vendor"
+    },
+    {
       "path": "./libs/shared/file-lock"
     }
   ],

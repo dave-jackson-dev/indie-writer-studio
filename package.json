@@ -40,7 +40,8 @@
   },
   "workspaces": [
     "apps/*",
-    "libs/*/*"
+    "libs/*/*",
+    "tools/*"
   ],
   "type": "module"
 }

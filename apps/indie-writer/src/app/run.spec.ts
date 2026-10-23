@@ -34,7 +34,7 @@ describe('indie-writer CLI', () => {
       kind: 'query',
       status: 'success',
       exitCode: 0,
-      data: { status: 'ok', service: 'indie-writer', components: ['works'] },
+      data: { status: 'ok', service: 'indie-writer', components: ['works', 'manuscript'] },
     });
   });
 

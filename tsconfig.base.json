@@ -26,6 +26,18 @@
       ],
       "@indie-writer-studio/works-infrastructure": [
         "./libs/works/infrastructure/src/index.ts"
+      ],
+      "@indie-writer-studio/manuscript-domain": [
+        "./libs/manuscript/domain/src/index.ts"
+      ],
+      "@indie-writer-studio/manuscript-application": [
+        "./libs/manuscript/application/src/index.ts"
+      ],
+      "@indie-writer-studio/manuscript-infrastructure": [
+        "./libs/manuscript/infrastructure/src/index.ts"
+      ],
+      "@indie-writer-studio/file-lock": [
+        "./libs/shared/file-lock/src/index.ts"
       ]
     },
     "experimentalDecorators": true,

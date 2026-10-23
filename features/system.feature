@@ -1,7 +1,7 @@
 Feature: System health
 
   As an author running IndieWriter Studio
-  I want to know the service is up and which components it composed
+  I CAN see that the service is up and which components it composed
   So that I can trust the app before I start writing
 
   Scenario: The service reports that it is healthy
@@ -12,6 +12,7 @@ Feature: System health
   Scenario: The service lists the components it composed
     When Ada checks the system health
     Then the system reports the component "works"
+    And the system reports the component "manuscript"
 
   Scenario: An unknown operation is refused by name
     When Ada runs the operation "nothing.here"

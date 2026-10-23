@@ -17,6 +17,18 @@
     },
     {
       "path": "./libs/works/infrastructure"
+    },
+    {
+      "path": "./libs/manuscript/domain"
+    },
+    {
+      "path": "./libs/manuscript/application"
+    },
+    {
+      "path": "./libs/manuscript/infrastructure"
+    },
+    {
+      "path": "./libs/shared/file-lock"
     }
   ],
   "compilerOptions": {}

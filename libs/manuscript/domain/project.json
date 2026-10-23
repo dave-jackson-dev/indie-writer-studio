@@ -1,0 +1,26 @@
+{
+  "name": "manuscript-domain",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/manuscript/domain/src",
+  "projectType": "library",
+  "tags": ["scope:manuscript", "type:domain"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "vitest run",
+        "cwd": "libs/manuscript/domain"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "commands": ["tsc -p tsconfig.lib.json --noEmit", "tsc -p tsconfig.spec.json --noEmit"],
+        "cwd": "libs/manuscript/domain",
+        "parallel": true
+      }
+    }
+  }
+}

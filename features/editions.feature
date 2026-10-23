@@ -1,7 +1,7 @@
 Feature: Editions of a Work
 
   As an author
-  I want to track the Editions of each Work
+  I CAN track the Editions of each Work
   So that I know which revision is current and which have been superseded
 
   Background:

@@ -4,6 +4,7 @@ import {
   addNode,
   emptyManuscript,
   findNode,
+  getNode,
   ManuscriptDomainError,
   moveNode,
   outlineOf,
@@ -86,7 +87,7 @@ describe('wordCount', () => {
     ['   \n\t ', 0],
     ['one', 1],
     ['one two  three', 3],
-    ['# Salt\n\nThe *first* line.\n  Indented.', 7],
+    ['# Salt\n\nThe *first* line.\n  Indented.', 6],
     ['tab\tseparated\nlines', 3],
   ])('counts %j as %i', (text, count) => expect(wordCount(text)).toBe(count));
 });
@@ -417,5 +418,16 @@ describe('outlineOf', () => {
       back: [],
       totalWords: 0,
     });
+  });
+});
+
+describe('getNode', () => {
+  it('returns the node with its text and children', () => {
+    const m = add(emptyManuscript('w1', NOW), 'chapter', 'One', { body: 'hello' });
+    expect(getNode(m, idOf(m, 'One'))).toMatchObject({ title: 'One', body: 'hello', children: [] });
+  });
+
+  it('refuses an unknown node as NODE_NOT_FOUND', () => {
+    expect(fail(() => getNode(emptyManuscript('w1', NOW), 'nope')).code).toBe('NODE_NOT_FOUND');
   });
 });

@@ -1,6 +1,8 @@
 import { join } from 'node:path';
 
 import type { ToolOperationDescriptor } from '@indie-writer-studio/cqrs-tool-runtime';
+import { createManuscriptToolOperations } from '@indie-writer-studio/manuscript-application';
+import { ManuscriptModule } from '@indie-writer-studio/manuscript-infrastructure';
 import { createWorksToolOperations } from '@indie-writer-studio/works-application';
 import { WorksModule } from '@indie-writer-studio/works-infrastructure';
 import type { DynamicModule, Type } from '@nestjs/common';
@@ -35,6 +37,11 @@ export function createComponents(config: ComponentsConfig = defaultConfig()): re
       name: 'works',
       module: WorksModule.register({ dataDir: config.dataDir }),
       operations: createWorksToolOperations,
+    },
+    {
+      name: 'manuscript',
+      module: ManuscriptModule.register({ dataDir: config.dataDir }),
+      operations: createManuscriptToolOperations,
     },
   ];
 }

@@ -1,7 +1,7 @@
 Feature: The works catalog
 
   As an author
-  I want a catalog of my Works
+  I CAN keep a catalog of my Works
   So that I can see what I am writing and where each Work stands
 
   Scenario: Adding a Work puts it in the catalog as a draft

@@ -1,7 +1,7 @@
 Feature: The manuscript
 
   As an author of fiction and nonfiction
-  I want to build my Work's text as parts, chapters, scenes and sections
+  I CAN build my Work's text as parts, chapters, scenes and sections
   So that I can draft, reorder and count the book while it is still taking shape
 
   Background:

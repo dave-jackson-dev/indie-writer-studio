@@ -23,6 +23,7 @@
 <!-- nx configuration end-->
 
 <!-- BEGIN MVP WORKSPACE ONBOARDING -->
+
 ## Agent onboarding
 
 - Read this repository's instructions and search its documentation before assuming how it works.
@@ -31,4 +32,11 @@
 - `mvp.workspace.init` indexes this repository's `docs/` and the packaged MVP How-To guides into this workspace's own document store. After changing documentation, refresh it with `mvp.documentation.ingest`.
 - In an Nx monorepo, discover projects and targets with `npx nx show projects` and `npx nx show project <project> --json`; do not guess the affected project or its targets.
 - Bundled How-To guides describe LeanAgileOS and the MVP tools. Treat this repository's own instructions and conventions as authoritative, and adapt the guides rather than assuming every example applies unchanged.
+
 <!-- END MVP WORKSPACE ONBOARDING -->
+
+## Conventions
+
+- **Gherkin story lines are "I CAN" statements in Future Present Tense** (`As an author / I CAN keep a catalog of my Works / So that …`), per the Lean-Agile MVP methodology. Not "I want …". A Scenario that refuses someone for _who they are_ (not for what they sent) is an "I CANNOT" Zero-Trust Scenario and carries `@zero-trust`; this single-user app has none yet.
+- **Work test-first:** `.feature` files and specs are written and committed red before the code that makes them green.
+- **Work on `dev`.** Cut branches from `dev` with `mvp scm.branch.open`; `main` and `dev` are protected (`.githooks`).

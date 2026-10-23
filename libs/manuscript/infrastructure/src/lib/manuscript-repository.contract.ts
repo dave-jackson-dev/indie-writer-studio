@@ -93,7 +93,7 @@ export function manuscriptRepositoryContract(
     it('hands back copies, so a caller cannot change what is stored', async () => {
       const repo = await make();
       await repo.update('w1', () => sample('w1', 'Original'));
-      const read = (await repo.get('w1')) as { main: { title: string }[] };
+      const read = (await repo.get('w1')) as unknown as { main: { title: string }[] };
       read.main[0]!.title = 'Mutated';
       expect((await repo.get('w1'))?.main[0]?.title).toBe('Original');
     });

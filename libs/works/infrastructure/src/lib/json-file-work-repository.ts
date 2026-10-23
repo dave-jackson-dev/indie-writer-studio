@@ -1,17 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { link, mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises';
+import { open, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
 
+import { FileLock } from '@indie-writer-studio/file-lock';
 import type { WorkRepository } from '@indie-writer-studio/works-application';
 import { WORK_STATUSES, type Work } from '@indie-writer-studio/works-domain';
 
 const FILE = 'works.json';
 const LOCK = 'works.lock';
-/** How long a writer waits for another process before giving up. */
-const LOCK_TIMEOUT_MS = 10_000;
-/** A lock older than this was left by a process that died holding it. */
-const LOCK_STALE_MS = 30_000;
 
 const isWork = (value: unknown): value is Work => {
   if (typeof value !== 'object' || value === null) return false;
@@ -41,12 +36,12 @@ const isWork = (value: unknown): value is Work => {
  */
 export class JsonFileWorkRepository implements WorkRepository {
   private readonly path: string;
-  private readonly lockPath: string;
+  private readonly lock: FileLock;
   private queue: Promise<unknown> = Promise.resolve();
 
-  constructor(private readonly dataDir: string) {
+  constructor(dataDir: string) {
     this.path = join(dataDir, FILE);
-    this.lockPath = join(dataDir, LOCK);
+    this.lock = new FileLock(join(dataDir, LOCK));
   }
 
   async get(id: string): Promise<Work | undefined> {
@@ -107,7 +102,7 @@ export class JsonFileWorkRepository implements WorkRepository {
 
   private write<T>(change: (works: Work[]) => T): Promise<T> {
     const run = (): Promise<T> =>
-      this.withLock(async () => {
+      this.lock.withLock(async () => {
         const works = await this.read();
         const result = change(works);
         const temporary = `${this.path}.${process.pid}.tmp`;
@@ -129,76 +124,5 @@ export class JsonFileWorkRepository implements WorkRepository {
     const next = this.queue.then(run, run);
     this.queue = next.catch(() => undefined);
     return next;
-  }
-
-  private async withLock<T>(run: () => Promise<T>): Promise<T> {
-    await mkdir(this.dataDir, { recursive: true });
-    const token = `${process.pid}-${randomUUID()}`;
-    const deadline = Date.now() + LOCK_TIMEOUT_MS;
-    for (;;) {
-      if (await this.tryAcquire(token)) break;
-      if (!(await this.breakIfStale(token))) {
-        if (Date.now() > deadline) {
-          throw new Error(`${this.lockPath} is held by another process; try again.`);
-        }
-        await sleep(5 + Math.random() * 20);
-      }
-    }
-    try {
-      return await run();
-    } finally {
-      await this.release(token);
-    }
-  }
-
-  /** Creates the lock exclusively. A lock that could not be written is not left behind. */
-  private async tryAcquire(token: string): Promise<boolean> {
-    let handle;
-    try {
-      handle = await open(this.lockPath, 'wx');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false;
-      throw error;
-    }
-    try {
-      await handle.writeFile(token);
-    } catch (error) {
-      await handle.close();
-      await rm(this.lockPath, { force: true });
-      throw error;
-    }
-    await handle.close();
-    return true;
-  }
-
-  /**
-   * Removes a lock left by a process that died holding it. The lock is renamed aside first and
-   * only discarded if it is the very file that was judged stale (same inode): between the check
-   * and the rename another process may have broken it and taken a fresh one, which is put back.
-   * Best effort by nature: a file lock cannot be made perfect, but a hold lasts milliseconds.
-   */
-  private async breakIfStale(token: string): Promise<boolean> {
-    const seen = await stat(this.lockPath).catch(() => undefined);
-    if (seen === undefined) return true;
-    if (Date.now() - seen.mtimeMs <= LOCK_STALE_MS) return false;
-    const aside = `${this.lockPath}.${token}.stale`;
-    try {
-      await rename(this.lockPath, aside);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true;
-      throw error;
-    }
-    const taken = await stat(aside).catch(() => undefined);
-    if (taken !== undefined && taken.ino !== seen.ino) {
-      await link(aside, this.lockPath).catch(() => undefined);
-    }
-    await rm(aside, { force: true });
-    return true;
-  }
-
-  /** Removes the lock only if it is still ours. */
-  private async release(token: string): Promise<void> {
-    const holder = await readFile(this.lockPath, 'utf8').catch(() => undefined);
-    if (holder === token) await rm(this.lockPath, { force: true });
   }
 }

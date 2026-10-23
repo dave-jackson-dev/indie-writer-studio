@@ -1,7 +1,7 @@
 Feature: System health
 
   As an author running IndieWriter Studio
-  I want to know the service is up and which components it composed
+  I CAN see that the service is up and which components it composed
   So that I can trust the app before I start writing
 
   Scenario: The service reports that it is healthy

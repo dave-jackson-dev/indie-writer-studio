@@ -2,7 +2,12 @@
   "name": "@indie-writer-studio/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "test": "nx run-many -t test",
+    "typecheck": "nx run-many -t typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "private": true,
   "dependencies": {},
   "devDependencies": {
@@ -14,9 +19,12 @@
     "nx": "24.0.0",
     "prettier": "^3.8.1",
     "tslib": "^2.3.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
   },
   "workspaces": [
-    "packages/*"
-  ]
+    "apps/*",
+    "libs/*/*"
+  ],
+  "type": "module"
 }

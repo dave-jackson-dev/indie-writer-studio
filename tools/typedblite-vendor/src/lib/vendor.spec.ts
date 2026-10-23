@@ -34,6 +34,7 @@ function sibling(
     dirty?: boolean;
     runtimeLicence?: boolean;
     rootLicence?: string;
+    staleBuild?: boolean;
   } = {},
 ): string {
   const root = scratch();

@@ -3,8 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { pathToFileURL } from 'node:url';
 
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { vendoredBundlePath } from './bundle.js';
 import { Database } from './database.js';
 import { decode, encode } from './literals.js';
 
@@ -195,7 +198,14 @@ describe('Database', () => {
       await sleep(20);
       await session.execute('insert $n isa note, has note-id "slow";');
     });
+    // The engine class is the vendored bundle's: count how often its close really runs.
+    const bundle = (await import(pathToFileURL(vendoredBundlePath()).href)) as {
+      SqliteEngine: { prototype: { close(): Promise<void> } };
+    };
+    const engineClose = vi.spyOn(bundle.SqliteEngine.prototype, 'close');
     const closes = await Promise.allSettled([database.close(), database.close(), database.close()]);
+    expect(engineClose).toHaveBeenCalledTimes(1);
+    engineClose.mockRestore();
     expect(closes.map((c) => c.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled']);
     await expect(slow).resolves.toBeUndefined();
     await expect(database.close()).resolves.toBeUndefined();

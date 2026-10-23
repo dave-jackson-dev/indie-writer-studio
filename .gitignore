@@ -48,6 +48,3 @@ Thumbs.db
 .nx/polygraph
 .nx/self-healing
 .nx/migrate-runs
-# Lean-Agile MVP workspace: only the project marker is tracked; the rest is machine-local app state
-.mvp/*
-!.mvp/project.json

@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/cqrs-tool-runtime-spec",
-    "types": ["node"]
-  },
-  "include": ["src/**/*.ts"]
-}

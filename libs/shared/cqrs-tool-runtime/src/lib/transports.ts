@@ -232,35 +232,41 @@ export async function runJsonLinesDriver(
       );
       continue;
     }
-    if (typeof request !== 'object' || request === null || Array.isArray(request)) {
-      send(
-        systemError(
-          'driver',
-          'invalid-request',
-          'INVALID_REQUEST',
-          'Each request must be a JSON object',
-        ),
-      );
-      continue;
-    }
-    const { operation, input: requestInput, correlationId } = request as Partial<SidecarRequest>;
-    const id = typeof correlationId === 'string' ? correlationId : undefined;
-    if (typeof operation !== 'string' || operation === '') {
-      send(
-        systemError(
-          'driver',
-          id ?? 'invalid-request',
-          'INVALID_REQUEST',
-          "A request needs a string 'operation'",
-        ),
-      );
-      continue;
-    }
-    if (operation === 'help') {
-      const topic = (requestInput as Record<string, unknown> | undefined)?.['topic'];
-      send(runtime.helpEnvelope(id, typeof topic === 'string' ? topic : undefined));
-      continue;
-    }
-    send(await runtime.dispatch(operation, requestInput ?? {}, id));
+    send(await dispatchRequest(runtime, request));
   }
+}
+
+/**
+ * One request in the shape every message transport shares (the sidecar's lines, the IPC transport's
+ * messages): `{ operation, input?, correlationId? }`. Anything that is not an object with a string
+ * `operation` gets an `INVALID_REQUEST` envelope, keeping a correlation id it was given; `help` is a
+ * request like any other, with an optional `input.topic`.
+ */
+export async function dispatchRequest(
+  runtime: CqrsToolRuntime,
+  request: unknown,
+): Promise<ToolEnvelope> {
+  if (typeof request !== 'object' || request === null || Array.isArray(request)) {
+    return systemError(
+      'driver',
+      'invalid-request',
+      'INVALID_REQUEST',
+      'Each request must be a JSON object',
+    );
+  }
+  const { operation, input, correlationId } = request as Partial<SidecarRequest>;
+  const id = typeof correlationId === 'string' ? correlationId : undefined;
+  if (typeof operation !== 'string' || operation === '') {
+    return systemError(
+      'driver',
+      id ?? 'invalid-request',
+      'INVALID_REQUEST',
+      "A request needs a string 'operation'",
+    );
+  }
+  if (operation === 'help') {
+    const topic = (input as Record<string, unknown> | undefined)?.['topic'];
+    return runtime.helpEnvelope(id, typeof topic === 'string' ? topic : undefined);
+  }
+  return runtime.dispatch(operation, input ?? {}, id);
 }

@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     ...testDefaults('electron-e2e'),
     include: ['e2e/**/*.e2e.ts'],
+    // One Electron at a time: two `xvfb-run -a` started together can race for the same display.
+    fileParallelism: false,
     testTimeout: 90000,
     hookTimeout: 90000,
   },

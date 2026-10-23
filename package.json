@@ -14,7 +14,9 @@
     "vendor:bundle": "tsx tools/typedblite-vendor/src/cli.ts bundle",
     "vendor:check": "tsx tools/typedblite-vendor/src/cli.ts verify",
     "acceptance:cli": "IWS_ASSEMBLY=cli TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml --profile cli",
-    "acceptance:ipc": "npm exec nx -- build electron 1>&2 && IWS_ASSEMBLY=ipc TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml"
+    "acceptance:ipc": "npm exec nx -- build electron 1>&2 && IWS_ASSEMBLY=ipc TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
+    "electron:e2e": "nx run electron:e2e",
+    "electron": "nx build electron 1>&2 && electron dist/apps/electron"
   },
   "private": true,
   "dependencies": {

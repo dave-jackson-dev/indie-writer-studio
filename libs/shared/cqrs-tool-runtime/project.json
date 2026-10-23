@@ -1,0 +1,23 @@
+{
+  "name": "cqrs-tool-runtime",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/cqrs-tool-runtime/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:util"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": { "command": "vitest run", "cwd": "libs/shared/cqrs-tool-runtime" }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "commands": ["tsc -p tsconfig.lib.json --noEmit", "tsc -p tsconfig.spec.json --noEmit"],
+        "cwd": "libs/shared/cqrs-tool-runtime",
+        "parallel": true
+      }
+    }
+  }
+}

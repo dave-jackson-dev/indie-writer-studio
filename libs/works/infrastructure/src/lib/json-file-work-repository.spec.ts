@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -111,5 +112,42 @@ describe('JsonFileWorkRepository', () => {
     await expect(repo.list()).rejects.toThrow(/works\.json.*left untouched/);
     await expect(repo.get('a')).rejects.toThrow(/works\.json/);
     expect(await readFile(join(dir, 'works.json'), 'utf8')).toBe(content);
+  });
+
+  it('never removes a lock that another process now holds (release is ownership-checked)', async () => {
+    const dir = await scratch();
+    const lock = join(dir, 'works.lock');
+    const repo = new JsonFileWorkRepository(dir);
+    await repo.save(sample('a'));
+    await repo.update('a', (work) => {
+      // While this update holds the lock, pretend it was judged stale and taken over.
+      writeFileSync(lock, 'someone-else');
+      return work;
+    });
+    expect(await readFile(lock, 'utf8')).toBe('someone-else');
+  });
+
+  it('applies every update when many writers race to break the same stale lock', async () => {
+    const dir = await scratch();
+    const repos = [
+      new JsonFileWorkRepository(dir),
+      new JsonFileWorkRepository(dir),
+      new JsonFileWorkRepository(dir),
+    ];
+    await repos[0]?.save(sample('a', 't'));
+    const lock = join(dir, 'works.lock');
+    await writeFile(lock, 'crashed');
+    const old = new Date(Date.now() - 120_000);
+    await utimes(lock, old, old);
+    await Promise.all(
+      Array.from({ length: 12 }, (_, i) =>
+        (repos[i % 3] as JsonFileWorkRepository).update('a', (work) => ({
+          ...work,
+          title: `${work.title}x`,
+        })),
+      ),
+    );
+    expect((await repos[0]?.get('a'))?.title).toBe(`t${'x'.repeat(12)}`);
+    expect(await readdir(dir)).toEqual(['works.json']);
   });
 });

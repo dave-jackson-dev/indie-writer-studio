@@ -1,3 +1,5 @@
+import { request } from 'node:http';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { startHttpServer, type RunningServer } from './serve.js';
@@ -76,5 +78,33 @@ describe('HTTP transport', () => {
       headers: { origin: 'https://evil.example' },
     });
     expect(refused.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('refuses a request from a disallowed origin before it runs, whatever the method', async () => {
+    for (const method of ['GET', 'POST'] as const) {
+      const response = await fetch(`${server.url}/operations/system.health`, {
+        method,
+        headers: { origin: 'https://evil.example', 'content-type': 'text/plain' },
+        body: method === 'POST' ? '{}' : undefined,
+      });
+      expect(response.status).toBe(403);
+      expect(await body(response)).toMatchObject({ error: { code: 'FORBIDDEN_ORIGIN' } });
+    }
+  });
+
+  it('refuses a non-loopback Host header while bound to loopback (DNS rebinding)', async () => {
+    const { port } = new URL(server.url);
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = request(
+        { host: '127.0.0.1', port, path: '/health', headers: { host: 'rebound.example' } },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+    expect(status).toBe(403);
   });
 });

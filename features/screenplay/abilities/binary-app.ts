@@ -1,7 +1,10 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { electronEnv } from '../../../apps/electron/src/launch-env.ts';
+import { launchCommand } from '../../../apps/electron/src/launcher.ts';
 import type { Envelope, OperateApp } from './operate-app.ts';
 
 interface Pending {
@@ -9,12 +12,18 @@ interface Pending {
   reject(error: Error): void;
 }
 
+/** The built Electron app: a directory with its own package.json. */
+export const ELECTRON_APP = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../dist/apps/electron',
+);
+
 export const BUNDLE = join(
   dirname(fileURLToPath(import.meta.url)),
   '../../../dist/apps/indie-writer/main.js',
 );
 
-export type BinaryTransport = 'cli' | 'repl' | 'sidecar' | 'http';
+export type BinaryTransport = 'cli' | 'repl' | 'sidecar' | 'http' | 'ipc';
 
 interface Spawned {
   code: number | null;
@@ -35,6 +44,10 @@ export class BinaryApp implements OperateApp {
   private url: string | undefined;
   private pending: Pending[] = [];
   private childStderr = '';
+  /** The Electron driver says `ready` once its window has loaded; requests wait for that. */
+  private ready: Promise<void> = Promise.resolve();
+  private markReady: () => void = () => undefined;
+  private failReady: (error: Error) => void = () => undefined;
   private buffer = '';
 
   constructor(
@@ -67,9 +80,11 @@ export class BinaryApp implements OperateApp {
       case 'cli':
         return JSON.parse(firstLine((await this.run([operation, '--json', json])).stdout));
       case 'repl':
-        return this.lineSession(['--repl', '--json'], `${operation} --json ${replQuote(json)}`);
+        return this.lineSession(`${operation} --json ${replQuote(json)}`);
       case 'sidecar':
-        return this.lineSession(['--sidecar'], JSON.stringify({ operation, input }));
+        return this.lineSession(JSON.stringify({ operation, input }));
+      case 'ipc':
+        return this.lineSession(JSON.stringify({ operation, input }));
       case 'http': {
         const response = await fetch(`${await this.startHttp()}/operations/${operation}`, {
           method: 'POST',
@@ -86,9 +101,33 @@ export class BinaryApp implements OperateApp {
    * (`--repl --json`) and the sidecar (`--sidecar`) both speak this way. It lives for the scenario,
    * so the engine is loaded once, and a restart ends it and starts another.
    */
-  private lineSession(args: string[], request: string): Promise<Envelope> {
+  private spawnSession(): ChildProcessWithoutNullStreams {
+    if (this.transport === 'ipc') {
+      this.ready = new Promise((resolve, reject) => {
+        this.markReady = resolve;
+        this.failReady = reject;
+      });
+      this.ready.catch(() => undefined); // a rejection is reported to the request that awaits it
+      const { command, args } = launchCommand({
+        electronPath: createRequire(import.meta.url)('electron') as string,
+        appDir: ELECTRON_APP,
+        args: ['--ipc-driver'],
+        platform: process.platform,
+        display: process.env['DISPLAY'],
+        uid: process.getuid?.() ?? 1,
+      });
+      return spawn(command, args, {
+        env: { ...electronEnv(process.env), ...this.env() },
+        detached: true,
+      });
+    }
+    const args = this.transport === 'repl' ? ['--repl', '--json'] : ['--sidecar'];
+    return spawn(process.execPath, [BUNDLE, ...args], { env: this.env() });
+  }
+
+  private async lineSession(request: string): Promise<Envelope> {
     if (!this.child) {
-      const child = spawn(process.execPath, [BUNDLE, ...args], { env: this.env() });
+      const child = this.spawnSession();
       this.childStderr = '';
       child.stderr.on('data', (chunk) => (this.childStderr += chunk));
       child.stdout.on('data', (chunk) => {
@@ -103,6 +142,7 @@ export class BinaryApp implements OperateApp {
       });
       // A child that ends, or cannot start, fails what is waiting on it instead of leaving it to time out.
       const gone = (why: string) => {
+        this.failReady(new Error(`The app ${why} before it was ready.${this.stderrNote()}`));
         const waiting = this.pending.splice(0);
         for (const { reject } of waiting) {
           reject(new Error(`The app ${why} with a request pending.${this.stderrNote()}`));
@@ -113,6 +153,7 @@ export class BinaryApp implements OperateApp {
       this.child = child;
     }
     const child = this.child;
+    await this.ready;
     return new Promise((resolve, reject) => {
       this.pending.push({ resolve, reject });
       child.stdin.write(`${request}\n`, (error) => {
@@ -124,6 +165,11 @@ export class BinaryApp implements OperateApp {
 
   /** One line of output is one envelope for the oldest waiting request; anything else is an error to see. */
   private answer(line: string): void {
+    if (this.transport === 'ipc' && /^\{"event":"ready"/.test(line)) {
+      this.markReady();
+      return;
+    }
+    if (this.transport === 'ipc' && !line.startsWith('{')) return; // Chromium's own chatter
     const waiting = this.pending.shift();
     if (waiting === undefined) return;
     try {
@@ -170,8 +216,17 @@ export class BinaryApp implements OperateApp {
     this.buffer = '';
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     await new Promise<void>((resolve) => {
-      child.on('close', () => resolve());
-      if (this.transport === 'sidecar' || this.transport === 'repl') child.stdin.end();
+      // A window that will not close on its own is killed with its whole process group (the X server too).
+      const force = setTimeout(() => {
+        try {
+          if (child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          // already gone
+        }
+      }, 15_000);
+      child.on('close', () => (clearTimeout(force), resolve()));
+      if (this.transport === 'sidecar' || this.transport === 'repl' || this.transport === 'ipc')
+        child.stdin.end();
       else child.kill('SIGTERM');
     });
   }

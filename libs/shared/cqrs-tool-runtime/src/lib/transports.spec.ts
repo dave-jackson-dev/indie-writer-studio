@@ -6,6 +6,7 @@ import { defineOperation, type ToolIo } from './contracts.js';
 import { requiredString } from './input.js';
 import { CqrsToolRuntime } from './runtime.js';
 import {
+  dispatchRequest,
   formatEnvelope,
   runInteractiveRepl,
   runJsonLinesDriver,
@@ -235,5 +236,63 @@ describe('runJsonLinesDriver (sidecar)', () => {
 
   it('ends when its input ends', async () => {
     expect(await exchange()).toEqual([]);
+  });
+});
+
+describe('dispatchRequest (the shared request shape: sidecar lines and IPC messages)', () => {
+  it('runs an operation and returns its envelope, carrying the caller’s correlation id', async () => {
+    const envelope = await dispatchRequest(runtime, {
+      operation: 'demo.echo',
+      input: { text: 'hi' },
+      correlationId: 'c-1',
+    });
+    expect(envelope).toMatchObject({
+      status: 'success',
+      operation: 'demo.echo',
+      correlationId: 'c-1',
+    });
+  });
+
+  it('treats a missing input as an empty one', async () => {
+    const envelope = await dispatchRequest(runtime, { operation: 'demo.echo' });
+    expect(envelope).toMatchObject({ status: 'error', error: { code: 'INVALID_INPUT' } });
+  });
+
+  it('answers help as a request like any other, with an optional topic', async () => {
+    const all = await dispatchRequest(runtime, { operation: 'help' });
+    expect(all).toMatchObject({ status: 'success', kind: 'system' });
+    const one = await dispatchRequest(runtime, {
+      operation: 'help',
+      input: { topic: 'demo.echo' },
+    });
+    expect(JSON.stringify(one)).toContain('demo.echo');
+  });
+
+  it.each([
+    ['null', null],
+    ['a string', 'demo.echo'],
+    ['an array', [{ operation: 'demo.echo' }]],
+    ['a number', 7],
+  ])('refuses %s as INVALID_REQUEST without running anything', async (_label, request) => {
+    expect(await dispatchRequest(runtime, request)).toMatchObject({
+      status: 'error',
+      error: { code: 'INVALID_REQUEST' },
+    });
+  });
+
+  it.each([{}, { operation: '' }, { operation: 5 }, { input: {} }])(
+    'refuses %j for lack of a string operation, keeping a correlation id it was given',
+    async (request) => {
+      const envelope = await dispatchRequest(runtime, { ...request, correlationId: 'c-9' });
+      expect(envelope).toMatchObject({ status: 'error', error: { code: 'INVALID_REQUEST' } });
+      expect(envelope.correlationId).toBe('c-9');
+    },
+  );
+
+  it('answers an unknown operation with the runtime’s own envelope', async () => {
+    expect(await dispatchRequest(runtime, { operation: 'nope.nothing' })).toMatchObject({
+      status: 'error',
+      error: { code: 'UNKNOWN_OPERATION' },
+    });
   });
 });

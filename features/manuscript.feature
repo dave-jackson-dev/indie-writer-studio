@@ -220,6 +220,11 @@ Feature: The manuscript
     Then the outcome is an error with code "INVALID_WORK_ID"
     And the exit code is 2
 
+  Scenario: A work id that could escape the data directory is refused when writing too
+    When Ada adds a chapter "Escape" to the main matter of the work with id "../../etc"
+    Then the outcome is an error with code "INVALID_WORK_ID"
+    And the exit code is 2
+
   @restart
   Scenario: The manuscript survives the app being restarted
     Given Ada has added a chapter "One" to the main matter of "The Salt Road"

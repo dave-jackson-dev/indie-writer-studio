@@ -83,3 +83,8 @@ export const removeNodeById =
 
 export const outlineOfWorkId = (workId: string): Task =>
   operate('manuscript.outline', { 'work-id': workId });
+
+export const addNodeToWorkId =
+  (workId: string, kind: string, title: string, matter: string): Task =>
+  (actor) =>
+    operate('manuscript.node.add', { 'work-id': workId, kind, title, matter })(actor);

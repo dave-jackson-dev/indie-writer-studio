@@ -1,4 +1,4 @@
-import type { Manuscript } from '@indie-writer-studio/manuscript-domain';
+import { parseWorkId, type Manuscript } from '@indie-writer-studio/manuscript-domain';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -185,5 +185,45 @@ describe('manuscript handlers', () => {
     const s = setup();
     await Promise.all([addChapter(s, 'A'), addChapter(s, 'B'), addChapter(s, 'C')]);
     expect((await s.repo.get(W))?.main).toHaveLength(3);
+  });
+
+  it('maps an unsafe work id to INVALID_WORK_ID on every operation, even when the repository rejects it first', async () => {
+    // Like the JSON adapter, which names a file after the work id and so checks it before anything else.
+    class CheckingRepo extends MemoryRepo {
+      override async get(workId: string) {
+        parseWorkId(workId);
+        return super.get(workId);
+      }
+      override async update(
+        workId: string,
+        change: (current: Manuscript | undefined) => Manuscript,
+      ) {
+        parseWorkId(workId);
+        return super.update(workId, change);
+      }
+    }
+    const repo = new CheckingRepo();
+    const generator = ids();
+    const handlers = {
+      add: new AddNodeHandler(repo, generator, clock),
+      update: new UpdateNodeHandler(repo, clock),
+      move: new MoveNodeHandler(repo, clock),
+      remove: new RemoveNodeHandler(repo, clock),
+    };
+    const expected = { code: 'INVALID_WORK_ID', exitCode: 2 };
+    await expect(
+      handlers.add.execute(
+        new AddNodeCommand('../x', 'chapter', 'T', undefined, undefined, undefined, undefined),
+      ),
+    ).rejects.toMatchObject(expected);
+    await expect(
+      handlers.update.execute(new UpdateNodeCommand('../x', 'n1', { title: 'x' })),
+    ).rejects.toMatchObject(expected);
+    await expect(
+      handlers.move.execute(new MoveNodeCommand('../x', 'n1', { matter: 'back' })),
+    ).rejects.toMatchObject(expected);
+    await expect(
+      handlers.remove.execute(new RemoveNodeCommand('../x', 'n1')),
+    ).rejects.toMatchObject(expected);
   });
 });

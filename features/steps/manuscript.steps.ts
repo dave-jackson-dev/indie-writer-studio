@@ -11,6 +11,7 @@ import {
 } from '../screenplay/questions/manuscript.questions.ts';
 import {
   addNode,
+  addNodeToWorkId,
   moveNode,
   outlineOfWorkId,
   removeNode,
@@ -66,6 +67,13 @@ When(
   '{actor} adds a {word} {string} under the node with id {string} in {string}',
   async (actor: Author, kind: string, title: string, underId: string, work: string) => {
     await actor.attemptsTo(addNode(work, kind, title, { underId }));
+  },
+);
+
+When(
+  '{actor} adds a {word} {string} to the {word} matter of the work with id {string}',
+  async (actor: Author, kind: string, title: string, matter: string, workId: string) => {
+    await actor.attemptsTo(addNodeToWorkId(workId, kind, title, matter));
   },
 );
 

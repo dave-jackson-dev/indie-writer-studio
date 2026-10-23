@@ -54,6 +54,7 @@ export class AddNodeHandler implements ICommandHandler<AddNodeCommand, { node: M
   ) {}
 
   async execute(command: AddNodeCommand): Promise<{ node: ManuscriptNode }> {
+    applyRule(() => parseWorkId(command.workId));
     const id = this.ids.next();
     const now = this.clock.now();
     const manuscript = await this.repository.update(command.workId, (stored) =>
@@ -112,6 +113,7 @@ export class UpdateNodeHandler implements ICommandHandler<
   ) {}
 
   async execute(command: UpdateNodeCommand): Promise<{ node: ManuscriptNode }> {
+    applyRule(() => parseWorkId(command.workId));
     const now = this.clock.now();
     const manuscript = await this.repository.update(command.workId, (stored) =>
       applyRule(() =>
@@ -130,6 +132,7 @@ export class MoveNodeHandler implements ICommandHandler<MoveNodeCommand, { node:
   ) {}
 
   async execute(command: MoveNodeCommand): Promise<{ node: ManuscriptNode }> {
+    applyRule(() => parseWorkId(command.workId));
     const now = this.clock.now();
     const manuscript = await this.repository.update(command.workId, (stored) =>
       applyRule(() =>
@@ -148,6 +151,7 @@ export class RemoveNodeHandler implements ICommandHandler<RemoveNodeCommand, { r
   ) {}
 
   async execute(command: RemoveNodeCommand): Promise<{ removed: string }> {
+    applyRule(() => parseWorkId(command.workId));
     const now = this.clock.now();
     await this.repository.update(command.workId, (stored) =>
       applyRule(() => removeNode(current(stored, command.workId, now), command.id, now)),

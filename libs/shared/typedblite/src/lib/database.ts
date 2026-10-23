@@ -31,6 +31,7 @@ export interface DatabaseOptions {
 export class Database {
   private tail: Promise<unknown> = Promise.resolve();
   private closed = false;
+  private closing: Promise<void> | undefined;
 
   private constructor(private readonly engine: TypeDBLiteEngine) {}
 
@@ -63,11 +64,17 @@ export class Database {
     return this.enqueue(() => this.engine.transaction(() => work(this.session)));
   }
 
-  async close(): Promise<void> {
-    if (this.closed) return;
-    await this.tail.catch(() => undefined);
-    this.closed = true;
-    await this.engine.close();
+  /**
+   * Refuses new work at once, lets what is already queued finish, then closes the engine, once.
+   * Every caller gets the same promise, so each one waits for the close to complete.
+   */
+  close(): Promise<void> {
+    this.closing ??= (async () => {
+      this.closed = true;
+      await this.tail.catch(() => undefined);
+      await this.engine.close();
+    })();
+    return this.closing;
   }
 
   /** Nest calls this when the application context closes. */

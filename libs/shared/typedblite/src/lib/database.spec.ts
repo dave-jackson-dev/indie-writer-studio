@@ -176,4 +176,28 @@ describe('Database', () => {
     ).rejects.toThrow(/closed/i);
     await expect(database.write(async () => undefined)).rejects.toThrow(/closed/i);
   });
+
+  it('lets work already queued finish, then refuses anything that arrives while it closes', async () => {
+    const database = await Database.open({ schemas: [NOTES] });
+    const queued = database.write((session) =>
+      session.execute('insert $n isa note, has note-id "queued";'),
+    );
+    const closing = database.close();
+    const late = database.read((session) => session.query('match $n isa note; select $n;'));
+    await expect(late).rejects.toThrow(/closed/i);
+    await queued;
+    await closing;
+  });
+
+  it('closes once however many callers ask, and every one of them waits for it', async () => {
+    const database = await Database.open({ schemas: [NOTES] });
+    const slow = database.write(async (session) => {
+      await sleep(20);
+      await session.execute('insert $n isa note, has note-id "slow";');
+    });
+    const closes = await Promise.allSettled([database.close(), database.close(), database.close()]);
+    expect(closes.map((c) => c.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled']);
+    await expect(slow).resolves.toBeUndefined();
+    await expect(database.close()).resolves.toBeUndefined();
+  });
 });

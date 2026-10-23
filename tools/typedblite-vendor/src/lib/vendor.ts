@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -54,6 +54,28 @@ const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 /**
+ * `out/` is a gitignored build product, so a clean `git status` says nothing about whether it was
+ * built from the commit now checked out. A source file changed after the build (as checking out a
+ * newer commit does) means the build is stale, and the provenance would record a commit the code
+ * did not come from.
+ */
+function assertBuildIsCurrent(sibling: string, entry: string): void {
+  const builtAt = statSync(entry).mtimeMs;
+  const tracked = git(sibling, 'ls-files', 'libs/core').split('\n').filter(Boolean);
+  const newer = tracked.find((file) => {
+    if (file.includes('/out/')) return false;
+    const path = join(sibling, file);
+    return existsSync(path) && statSync(path).mtimeMs > builtAt;
+  });
+  if (newer !== undefined) {
+    throw new Error(
+      `The build in ${entry} is older than its sources (${newer} changed after it was built); ` +
+        'rebuild typedblite-runtime in the sibling and try again.',
+    );
+  }
+}
+
+/**
  * Bundles the sibling's built TypeDBLite runtime, with everything it imports, into one file.
  * Refuses a sibling that is not built, or has uncommitted changes: the commit recorded in the
  * provenance must be the code that was bundled.
@@ -74,6 +96,7 @@ export async function bundleFromSibling(
       `The sibling checkout ${sibling} has uncommitted changes; commit or stash them first.`,
     );
   }
+  assertBuildIsCurrent(sibling, entry);
   const pkg = JSON.parse(readFileSync(join(runtime, 'package.json'), 'utf8')) as {
     name: string;
     version: string;

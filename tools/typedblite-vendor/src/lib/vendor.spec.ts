@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -64,6 +64,18 @@ function sibling(
   git(root, 'init', '-q');
   git(root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'add', '-A');
   git(root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'sibling');
+  // The build is newer than the sources it came from, unless the test says a source moved on.
+  const long = new Date(Date.now() - 3_600_000);
+  const recent = new Date(Date.now() - 1_800_000);
+  for (const file of ['package.json', 'LICENSE']) utimesSync(join(runtime, file), long, long);
+  if (options.built !== false) {
+    for (const file of ['out/helper.js', 'out/index.js'])
+      utimesSync(join(runtime, file), recent, recent);
+  }
+  if (options.staleBuild) {
+    writeFileSync(join(runtime, 'LICENSE'), 'MIT (changed)');
+    git(root, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-am', 'newer source');
+  }
   if (options.dirty) writeFileSync(join(root, 'stray.txt'), 'uncommitted');
   return root;
 }
@@ -144,6 +156,18 @@ describe('bundleFromSibling', () => {
     await expect(bundleFromSibling(sibling({ runtimeLicence: false }), scratch())).rejects.toThrow(
       /licence/i,
     );
+  });
+
+  it('refuses a build that is older than the sibling’s sources, so the recorded commit tells the truth', async () => {
+    await expect(bundleFromSibling(sibling({ staleBuild: true }), scratch())).rejects.toThrow(
+      /older than|stale|rebuild/i,
+    );
+  });
+
+  it('accepts a build that is newer than every source', async () => {
+    await expect(bundleFromSibling(sibling(), scratch())).resolves.toMatchObject({
+      package: '@lean-agile-os/typedblite-runtime',
+    });
   });
 
   it('refuses a sibling that is not built', async () => {

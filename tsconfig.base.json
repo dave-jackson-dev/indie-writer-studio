@@ -38,9 +38,6 @@
       ],
       "@indie-writer-studio/typedblite": [
         "./libs/shared/typedblite/src/index.ts"
-      ],
-      "@indie-writer-studio/file-lock": [
-        "./libs/shared/file-lock/src/index.ts"
       ]
     },
     "experimentalDecorators": true,

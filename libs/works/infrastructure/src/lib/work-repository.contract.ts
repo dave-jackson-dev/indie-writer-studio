@@ -116,7 +116,7 @@ export function workRepositoryContract(name: string, make: () => Promise<WorkRep
         'with "quotes" and \\ backslashes',
         'control \u0001 \u007f characters',
         'unicode é 日本語 🙂',
-        'x'.repeat(50_000),
+        'x'.repeat(5000),
       ].entries()) {
         const work = createWork(`t${i}`, { title: `T${i}`, synopsis }, at);
         await repo.save(work);

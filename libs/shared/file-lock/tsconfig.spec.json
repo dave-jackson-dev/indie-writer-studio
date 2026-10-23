@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/file-lock-spec",
-    "types": ["node"]
-  },
-  "include": ["src/**/*.ts"]
-}

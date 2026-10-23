@@ -32,9 +32,6 @@
     },
     {
       "path": "./tools/typedblite-vendor"
-    },
-    {
-      "path": "./libs/shared/file-lock"
     }
   ],
   "compilerOptions": {}

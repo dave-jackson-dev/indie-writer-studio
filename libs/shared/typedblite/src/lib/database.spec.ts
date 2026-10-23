@@ -41,8 +41,8 @@ describe('Database', () => {
   it('defines every schema it is given, in order, so a later one can refer to an earlier one', async () => {
     const database = await open({
       schemas: [
-        'define attribute owner-id, value string; entity owner, owns owner-id @key, plays owns-item:owner;',
-        'define attribute item-id, value string; entity item, owns item-id @key, plays owns-item:item; relation owns-item, relates owner, relates item;',
+        'define attribute owner-id, value string; entity owner, owns owner-id @key, plays owns-item:owner; relation owns-item, relates owner, relates item;',
+        'define attribute item-id, value string; entity item, owns item-id @key, plays owns-item:item;',
       ],
     });
     await database.write(async (session) => {

@@ -28,14 +28,31 @@ const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 /** A stand-in for the lean-agile-os checkout: a built runtime package in a committed repository. */
-function sibling(options: { built?: boolean; dirty?: boolean } = {}): string {
+function sibling(
+  options: {
+    built?: boolean;
+    dirty?: boolean;
+    runtimeLicence?: boolean;
+    rootLicence?: string;
+  } = {},
+): string {
   const root = scratch();
   const runtime = join(root, 'libs/core/typedblite/runtime');
   mkdirSync(join(runtime, 'out'), { recursive: true });
   writeFileSync(
     join(runtime, 'package.json'),
-    JSON.stringify({ name: '@lean-agile-os/typedblite-runtime', version: '9.9.9', license: 'MIT' }),
+    JSON.stringify({
+      name: '@lean-agile-os/typedblite-runtime',
+      version: '9.9.9',
+      ...(options.runtimeLicence === false ? {} : { license: 'MIT' }),
+    }),
   );
+  if (options.rootLicence) {
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({ name: 'root', license: options.rootLicence }),
+    );
+  }
   writeFileSync(join(runtime, 'LICENSE'), 'MIT');
   if (options.built !== false) {
     writeFileSync(join(runtime, 'out/helper.js'), "export const greeting = 'hello';\n");
@@ -112,6 +129,21 @@ describe('bundleFromSibling', () => {
     });
     expect(recorded.sha256).toBe(sha256(readFileSync(join(directory, bundleFile))));
     expect(recorded.bytes).toBe(readFileSync(join(directory, bundleFile)).length);
+  });
+
+  it('takes the licence from the sibling’s root package when the runtime package declares none', async () => {
+    const directory = scratch();
+    const provenance = await bundleFromSibling(
+      sibling({ runtimeLicence: false, rootLicence: 'Apache-2.0' }),
+      directory,
+    );
+    expect(provenance.licence).toBe('Apache-2.0');
+  });
+
+  it('refuses a sibling that declares no licence anywhere, rather than recording UNKNOWN', async () => {
+    await expect(bundleFromSibling(sibling({ runtimeLicence: false }), scratch())).rejects.toThrow(
+      /licence/i,
+    );
   });
 
   it('refuses a sibling that is not built', async () => {

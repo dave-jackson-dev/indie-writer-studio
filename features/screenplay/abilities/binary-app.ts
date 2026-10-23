@@ -60,12 +60,10 @@ export class BinaryApp implements OperateApp {
     switch (this.transport) {
       case 'cli':
         return JSON.parse(firstLine((await this.run([operation, '--json', json])).stdout));
-      case 'repl': {
-        const line = `${operation} --json ${replQuote(json)}\nexit\n`;
-        return JSON.parse(firstLine((await this.run(['--repl', '--json'], line)).stdout));
-      }
+      case 'repl':
+        return this.lineSession(['--repl', '--json'], `${operation} --json ${replQuote(json)}`);
       case 'sidecar':
-        return this.sidecar(operation, input);
+        return this.lineSession(['--sidecar'], JSON.stringify({ operation, input }));
       case 'http': {
         const response = await fetch(`${await this.startHttp()}/operations/${operation}`, {
           method: 'POST',
@@ -77,9 +75,14 @@ export class BinaryApp implements OperateApp {
     }
   }
 
-  private sidecar(operation: string, input: Record<string, unknown>): Promise<Envelope> {
+  /**
+   * One long-lived process that answers one envelope line per request line, in order: the REPL
+   * (`--repl --json`) and the sidecar (`--sidecar`) both speak this way. It lives for the scenario,
+   * so the engine is loaded once, and a restart ends it and starts another.
+   */
+  private lineSession(args: string[], request: string): Promise<Envelope> {
     if (!this.child) {
-      const child = spawn(process.execPath, [BUNDLE, '--sidecar'], { env: this.env() });
+      const child = spawn(process.execPath, [BUNDLE, ...args], { env: this.env() });
       child.stdout.on('data', (chunk) => {
         this.buffer += chunk;
         let newline = this.buffer.indexOf('\n');
@@ -95,7 +98,7 @@ export class BinaryApp implements OperateApp {
     const child = this.child;
     return new Promise((resolve) => {
       this.pending.push(resolve);
-      child.stdin.write(`${JSON.stringify({ operation, input })}\n`);
+      child.stdin.write(`${request}\n`);
     });
   }
 
@@ -131,7 +134,7 @@ export class BinaryApp implements OperateApp {
     if (!child) return;
     await new Promise<void>((resolve) => {
       child.on('close', () => resolve());
-      if (this.transport === 'sidecar') child.stdin.end();
+      if (this.transport === 'sidecar' || this.transport === 'repl') child.stdin.end();
       else child.kill('SIGTERM');
     });
   }

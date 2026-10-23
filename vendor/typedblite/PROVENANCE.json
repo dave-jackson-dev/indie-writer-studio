@@ -1,0 +1,9 @@
+{
+  "package": "@lean-agile-os/typedblite-runtime",
+  "packageVersion": "0.0.1",
+  "siblingCommit": "2c869d71f41f5b9c95924adf02d8bdcddab8087f",
+  "licence": "MIT",
+  "bundle": "typedblite.mjs",
+  "sha256": "14eae3b6abfac2b51743fbc96e28b6fba0cf9e0b53c19dc36297765ddb32aad8",
+  "bytes": 1969808
+}

@@ -6,6 +6,7 @@ import {
   After,
   Before,
   defineParameterType,
+  setDefaultTimeout,
   setWorldConstructor,
   type IWorldOptions,
 } from '@cucumber/cucumber';
@@ -16,6 +17,9 @@ import { InProcessApp } from '../screenplay/abilities/in-process-app.ts';
 import type { Envelope, OperateApp } from '../screenplay/abilities/operate-app.ts';
 
 defineParameterType(ActorParameterType);
+
+// A step may start several processes when the app is reached over the CLI.
+setDefaultTimeout(60_000);
 
 const ASSEMBLY = process.env['IWS_ASSEMBLY'] ?? 'in-process';
 

@@ -13,7 +13,8 @@
     "acceptance:transports": "nx build indie-writer 1>&2 && for t in repl sidecar http; do IWS_ASSEMBLY=$t npm run acceptance || exit 1; done && npm run acceptance:cli",
     "vendor:bundle": "tsx tools/typedblite-vendor/src/cli.ts bundle",
     "vendor:check": "tsx tools/typedblite-vendor/src/cli.ts verify",
-    "acceptance:cli": "IWS_ASSEMBLY=cli TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml --profile cli"
+    "acceptance:cli": "IWS_ASSEMBLY=cli TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml --profile cli",
+    "acceptance:ipc": "npm exec nx -- build electron 1>&2 && IWS_ASSEMBLY=ipc TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml"
   },
   "private": true,
   "dependencies": {
@@ -33,6 +34,7 @@
     "@swc/helpers": "0.5.18",
     "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
+    "electron": "^44.9.0",
     "esbuild": "^0.28.2",
     "nx": "24.0.0",
     "prettier": "^3.8.1",

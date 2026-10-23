@@ -38,6 +38,9 @@
       ],
       "@indie-writer-studio/typedblite": [
         "./libs/shared/typedblite/src/index.ts"
+      ],
+      "@indie-writer-studio/ipc-bridge": [
+        "./libs/shared/ipc-bridge/src/index.ts"
       ]
     },
     "experimentalDecorators": true,

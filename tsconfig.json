@@ -32,6 +32,12 @@
     },
     {
       "path": "./tools/typedblite-vendor"
+    },
+    {
+      "path": "./libs/shared/ipc-bridge"
+    },
+    {
+      "path": "./apps/electron"
     }
   ],
   "compilerOptions": {}

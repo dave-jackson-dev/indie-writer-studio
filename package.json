@@ -8,7 +8,9 @@
     "typecheck": "nx run-many -t typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "indie-writer": "nx build indie-writer 1>&2 && node dist/apps/indie-writer/main.js"
+    "indie-writer": "nx build indie-writer 1>&2 && node dist/apps/indie-writer/main.js",
+    "acceptance": "NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
+    "acceptance:transports": "nx build indie-writer 1>&2 && for t in cli repl sidecar http; do IWS_ASSEMBLY=$t npm run acceptance || exit 1; done"
   },
   "private": true,
   "dependencies": {
@@ -20,6 +22,8 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^10.9.0",
+    "@cucumber/screenplay": "^10.0.0",
     "@nx/js": "24.0.0",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
@@ -30,6 +34,7 @@
     "nx": "24.0.0",
     "prettier": "^3.8.1",
     "tslib": "^2.3.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^5.0.3"
   },

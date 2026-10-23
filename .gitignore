@@ -51,3 +51,6 @@ Thumbs.db
 # Lean-Agile MVP workspace: only the project marker is tracked; the rest is machine-local app state
 .mvp/*
 !.mvp/project.json
+
+# Local author data (works catalog)
+.indie-writer/

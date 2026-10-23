@@ -1,0 +1,22 @@
+{
+  "name": "acceptance",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "features",
+  "projectType": "application",
+  "tags": ["scope:indie-writer", "type:e2e"],
+  "implicitDependencies": ["indie-writer"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": { "command": "tsc -p features/tsconfig.json", "cwd": "{workspaceRoot}" }
+    }
+  }
+}

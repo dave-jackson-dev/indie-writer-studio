@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
 
 import { reportSmoke, runIpcDriver } from './driver.js';
 import { bootHost, type Host } from './host.js';
@@ -30,7 +30,13 @@ const focusWindow = (): void => {
 
 if (keepSingleInstance(app, focusWindow)) {
   // Not a top-level `await`: Electron emits `ready` only after the entry module has finished evaluating.
-  void app.whenReady().then(start);
+  void app.whenReady().then(start).catch(failStart);
+}
+
+function failStart(error: unknown): void {
+  console.error('IndieWriter Studio could not start', error);
+  dialog.showErrorBox('IndieWriter Studio could not start', String(error));
+  app.exit(1);
 }
 
 async function start(): Promise<void> {
@@ -47,16 +53,20 @@ async function start(): Promise<void> {
     (harness ? undefined : join(app.getPath('userData'), 'data'));
   host = await bootHost({ dataDir });
   registerIpcTransport(ipcMain, host.runtime, rendererDir);
-  window = openMainWindow(rendererDir, { preload: preloadPath, show: !ipcDriver });
-  window.on('closed', () => {
-    window = undefined;
-  });
-  if (smoke) void reportSmoke(window, host !== undefined);
-  if (ipcDriver) void runIpcDriver(window);
+  const open = (show: boolean): void => {
+    const opened = openMainWindow(rendererDir, { preload: preloadPath, show });
+    window = opened;
+    opened.on('closed', () => {
+      if (window === opened) window = undefined;
+    });
+  };
+  open(!ipcDriver);
+  if (window !== undefined && smoke) void reportSmoke(window, host !== undefined);
+  if (window !== undefined && ipcDriver) void runIpcDriver(window);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      window = openMainWindow(rendererDir, { preload: preloadPath });
+      open(true);
     }
   });
   app.on('window-all-closed', () => {
@@ -68,6 +78,12 @@ async function start(): Promise<void> {
     const closing = host;
     host = undefined;
     // `app.quit()` from inside a prevented `will-quit` does not finish quitting; windows are gone by now, so exit.
-    void closing.close().finally(() => app.exit(0));
+    closing.close().then(
+      () => app.exit(0),
+      (error: unknown) => {
+        console.error('IndieWriter Studio: the database did not close cleanly', error);
+        app.exit(1);
+      },
+    );
   });
 }

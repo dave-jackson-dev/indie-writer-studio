@@ -5,7 +5,7 @@ import { launch, type Running } from './launch.js';
 let app: Running | undefined;
 afterEach(async () => {
   if (app) {
-    app.child.kill('SIGKILL');
+    app.kill();
     app = undefined;
   }
 });

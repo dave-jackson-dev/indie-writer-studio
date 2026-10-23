@@ -19,6 +19,8 @@ export interface Running {
   next(match?: (line: any) => boolean, timeoutMs?: number): Promise<any>;
   send(message: unknown): void;
   exit(): Promise<number | null>;
+  /** Ends the app and everything the launcher started with it (the X server under `xvfb-run`). */
+  kill(): void;
 }
 
 /** Starts the built app, as a user would, with the harness arguments given. */
@@ -31,7 +33,10 @@ export function launch(args: string[], env: NodeJS.ProcessEnv = {}): Running {
     display: process.env['DISPLAY'],
     uid: process.getuid?.() ?? 1,
   });
-  const child = spawn(command, argv, { env: { ...electronEnv(process.env), ...env } });
+  const child = spawn(command, argv, {
+    env: { ...electronEnv(process.env), ...env },
+    detached: true, // its own process group, so a kill reaches Xvfb as well as the wrapper
+  });
   const lines: unknown[] = [];
   const waiting: { match: (line: any) => boolean; resolve: (line: any) => void }[] = [];
   createInterface({ input: child.stdout }).on('line', (text) => {
@@ -63,6 +68,13 @@ export function launch(args: string[], env: NodeJS.ProcessEnv = {}): Running {
         waiting.push({ match, resolve: (line) => (clearTimeout(timer), resolve(line)) });
       }),
     send: (message) => void child.stdin.write(`${JSON.stringify(message)}\n`),
+    kill: () => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        // already gone
+      }
+    },
     exit: async () => {
       child.stdin.end();
       return exited;

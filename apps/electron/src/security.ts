@@ -58,6 +58,12 @@ export function isAllowedNavigation(url: string, rendererDir: string): boolean {
   }
   if (target.protocol !== 'file:') return false;
   // `relative` rather than a string prefix: it is right for Windows paths and for a sibling that shares the prefix.
-  const inside = relative(rendererDir, fileURLToPath(target));
+  let path: string;
+  try {
+    path = fileURLToPath(target);
+  } catch {
+    return false; // a host component or an encoded separator: not a path inside the renderer
+  }
+  const inside = relative(rendererDir, path);
   return inside !== '' && !inside.startsWith('..') && !isAbsolute(inside);
 }

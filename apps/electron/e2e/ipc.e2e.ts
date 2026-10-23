@@ -7,7 +7,7 @@ import { launch, tempDataDir, type Running } from './launch.js';
 const running: Running[] = [];
 const dirs: string[] = [];
 afterEach(async () => {
-  for (const app of running.splice(0)) app.child.kill('SIGKILL');
+  for (const app of running.splice(0)) app.kill();
   await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 

@@ -70,6 +70,8 @@ describe('isAllowedNavigation', () => {
     ['data:text/html,hi', false],
     ['app://renderer/index.html', false],
     ['nonsense', false],
+    ['file://attacker-host/share/index.html', false],
+    ['file:///app/renderer/a%2Fb.html', false],
   ])('%s is %s', (url, allowed) => {
     expect(isAllowedNavigation(url, dir)).toBe(allowed);
   });

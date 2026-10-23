@@ -26,7 +26,13 @@ export function openMainWindow(
 
   // A page may only move within the shipped renderer, and may not open windows of its own.
   window.webContents.on('will-navigate', (event, url) => {
-    if (!isAllowedNavigation(url, rendererDir)) event.preventDefault();
+    let allowed = false;
+    try {
+      allowed = isAllowedNavigation(url, rendererDir);
+    } catch {
+      // fail closed
+    }
+    if (!allowed) event.preventDefault();
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 

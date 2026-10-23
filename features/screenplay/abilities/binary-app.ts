@@ -47,6 +47,7 @@ export class BinaryApp implements OperateApp {
   /** The Electron driver says `ready` once its window has loaded; requests wait for that. */
   private ready: Promise<void> = Promise.resolve();
   private markReady: () => void = () => undefined;
+  private failReady: (error: Error) => void = () => undefined;
   private buffer = '';
 
   constructor(
@@ -102,7 +103,11 @@ export class BinaryApp implements OperateApp {
    */
   private spawnSession(): ChildProcessWithoutNullStreams {
     if (this.transport === 'ipc') {
-      this.ready = new Promise((resolve) => (this.markReady = resolve));
+      this.ready = new Promise((resolve, reject) => {
+        this.markReady = resolve;
+        this.failReady = reject;
+      });
+      this.ready.catch(() => undefined); // a rejection is reported to the request that awaits it
       const { command, args } = launchCommand({
         electronPath: createRequire(import.meta.url)('electron') as string,
         appDir: ELECTRON_APP,
@@ -111,7 +116,10 @@ export class BinaryApp implements OperateApp {
         display: process.env['DISPLAY'],
         uid: process.getuid?.() ?? 1,
       });
-      return spawn(command, args, { env: { ...electronEnv(process.env), ...this.env() } });
+      return spawn(command, args, {
+        env: { ...electronEnv(process.env), ...this.env() },
+        detached: true,
+      });
     }
     const args = this.transport === 'repl' ? ['--repl', '--json'] : ['--sidecar'];
     return spawn(process.execPath, [BUNDLE, ...args], { env: this.env() });
@@ -134,6 +142,7 @@ export class BinaryApp implements OperateApp {
       });
       // A child that ends, or cannot start, fails what is waiting on it instead of leaving it to time out.
       const gone = (why: string) => {
+        this.failReady(new Error(`The app ${why} before it was ready.${this.stderrNote()}`));
         const waiting = this.pending.splice(0);
         for (const { reject } of waiting) {
           reject(new Error(`The app ${why} with a request pending.${this.stderrNote()}`));
@@ -207,7 +216,15 @@ export class BinaryApp implements OperateApp {
     this.buffer = '';
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     await new Promise<void>((resolve) => {
-      child.on('close', () => resolve());
+      // A window that will not close on its own is killed with its whole process group (the X server too).
+      const force = setTimeout(() => {
+        try {
+          if (child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          // already gone
+        }
+      }, 15_000);
+      child.on('close', () => (clearTimeout(force), resolve()));
       if (this.transport === 'sidecar' || this.transport === 'repl' || this.transport === 'ipc')
         child.stdin.end();
       else child.kill('SIGTERM');

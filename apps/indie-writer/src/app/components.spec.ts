@@ -4,15 +4,16 @@ import { createComponents } from './components.js';
 import { operationsFor } from './operations.js';
 
 describe('components', () => {
-  it('composes the works catalog', () => {
+  it('composes the works catalog and the manuscript', () => {
     const components = createComponents({});
-    expect(components.map((c) => c.name)).toEqual(['works']);
+    expect(components.map((c) => c.name)).toEqual(['works', 'manuscript']);
   });
 
   it('exposes the root operations and every component operation in one list', () => {
     const names = operationsFor(createComponents({})).map((o) => o.name);
     expect(names).toContain('system.health');
     expect(names).toContain('works.work.add');
+    expect(names).toContain('manuscript.node.add');
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -20,7 +21,7 @@ describe('components', () => {
     const previous = process.env['INDIE_WRITER_DATA_DIR'];
     process.env['INDIE_WRITER_DATA_DIR'] = '/tmp/iw-data';
     try {
-      expect(createComponents().map((c) => c.name)).toEqual(['works']);
+      expect(createComponents().map((c) => c.name)).toEqual(['works', 'manuscript']);
     } finally {
       if (previous === undefined) delete process.env['INDIE_WRITER_DATA_DIR'];
       else process.env['INDIE_WRITER_DATA_DIR'] = previous;

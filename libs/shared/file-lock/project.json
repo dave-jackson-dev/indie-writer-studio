@@ -1,0 +1,26 @@
+{
+  "name": "file-lock",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/file-lock/src",
+  "projectType": "library",
+  "tags": ["scope:shared", "type:util"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "vitest run",
+        "cwd": "libs/shared/file-lock"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "commands": ["tsc -p tsconfig.lib.json --noEmit", "tsc -p tsconfig.spec.json --noEmit"],
+        "cwd": "libs/shared/file-lock",
+        "parallel": true
+      }
+    }
+  }
+}

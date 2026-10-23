@@ -17,7 +17,7 @@ export const operate =
   };
 
 /** Works are named by title in scenarios; the app knows them by id. */
-const idOf = async (actor: Author, title: string): Promise<string> => {
+export const idOf = async (actor: Author, title: string): Promise<string> => {
   const work = (await actor.ask(theCatalog())).find((candidate) => candidate.title === title);
   if (!work) throw new Error(`No work titled "${title}" in the catalog.`);
   return work.id;

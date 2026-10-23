@@ -12,6 +12,7 @@ Feature: System health
   Scenario: The service lists the components it composed
     When Ada checks the system health
     Then the system reports the component "works"
+    And the system reports the component "manuscript"
 
   Scenario: An unknown operation is refused by name
     When Ada runs the operation "nothing.here"

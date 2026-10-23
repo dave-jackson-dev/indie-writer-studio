@@ -1,5 +1,9 @@
+import { join } from 'node:path';
+
 import type { ToolOperationDescriptor } from '@indie-writer-studio/cqrs-tool-runtime';
-import type { Type } from '@nestjs/common';
+import { createWorksToolOperations } from '@indie-writer-studio/works-application';
+import { WorksModule } from '@indie-writer-studio/works-infrastructure';
+import type { DynamicModule, Type } from '@nestjs/common';
 
 /**
  * A standalone CQRS app that `indie-writer` composes, the way `mvp` composes `scm`, `skills` and
@@ -10,9 +14,29 @@ import type { Type } from '@nestjs/common';
  */
 export interface Component {
   readonly name: string;
-  readonly module: Type<unknown>;
+  readonly module: Type<unknown> | DynamicModule;
   readonly operations: () => readonly ToolOperationDescriptor[];
 }
 
-/** Every component the root composes. Empty until the first one lands. */
-export const COMPONENTS: readonly Component[] = [];
+export interface ComponentsConfig {
+  /** Where components keep their data. Absent means in memory, which is gone on exit. */
+  readonly dataDir?: string | undefined;
+}
+
+/** `INDIE_WRITER_DATA_DIR`, else `.indie-writer` in the directory the app was started from. */
+const defaultConfig = (): ComponentsConfig => ({
+  dataDir: process.env['INDIE_WRITER_DATA_DIR'] ?? join(process.cwd(), '.indie-writer'),
+});
+
+/** Every component the root composes. Pass `{}` for an all-in-memory root (tests). */
+export function createComponents(config: ComponentsConfig = defaultConfig()): readonly Component[] {
+  return [
+    {
+      name: 'works',
+      module: WorksModule.register({ dataDir: config.dataDir }),
+      operations: createWorksToolOperations,
+    },
+  ];
+}
+
+export const COMPONENTS: readonly Component[] = createComponents();

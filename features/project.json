@@ -9,7 +9,7 @@
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
+        "command": "TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
         "cwd": "{workspaceRoot}"
       }
     },

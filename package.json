@@ -9,7 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "indie-writer": "nx build indie-writer 1>&2 && node dist/apps/indie-writer/main.js",
-    "acceptance": "NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
+    "acceptance": "TSX_TSCONFIG_PATH=tsconfig.base.json NODE_OPTIONS=--import=tsx cucumber-js --config cucumber.yaml",
     "acceptance:transports": "nx build indie-writer 1>&2 && for t in cli repl sidecar http; do IWS_ASSEMBLY=$t npm run acceptance || exit 1; done"
   },
   "private": true,

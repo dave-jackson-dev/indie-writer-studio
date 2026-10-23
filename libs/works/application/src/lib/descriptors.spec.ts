@@ -1,3 +1,4 @@
+import { assertNoUnknownInput, probeInput } from '@indie-writer-studio/cqrs-tool-runtime';
 import { describe, expect, it } from 'vitest';
 
 import { createWorksToolOperations } from './descriptors.js';
@@ -82,8 +83,27 @@ describe('works operations', () => {
     expect(() => request(name, input as Record<string, unknown>)).toThrow();
   });
 
-  it('refuses a key the operation does not read, by name', () => {
-    expect(() => request('works.work.add', { title: 'T', bogus: 1 })).toThrow(/bogus/);
+  it('reads every key it documents, so the runtime never refuses one of them as unknown', () => {
+    for (const op of operations) {
+      const properties = op.inputSchema?.properties ?? {};
+      const input = Object.fromEntries(
+        Object.entries(properties).map(([key, schema]) => [
+          key,
+          schema.type === 'integer' ? 1 : (schema.enum?.[0] ?? 'x'),
+        ]),
+      );
+      const probe = probeInput(input);
+      op.validate?.(probe.input);
+      expect(() => assertNoUnknownInput(op.name, input, probe), op.name).not.toThrow();
+    }
+  });
+
+  it('leaves a key it does not read for the runtime to refuse by name', () => {
+    const op = operation('works.work.add');
+    const input = { title: 'T', bogus: 1 };
+    const probe = probeInput(input);
+    op.validate?.(probe.input);
+    expect(() => assertNoUnknownInput(op.name, input, probe)).toThrow(/bogus/);
   });
 
   it('describes its input so OpenAPI can document it', () => {

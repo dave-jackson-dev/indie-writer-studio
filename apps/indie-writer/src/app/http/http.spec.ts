@@ -2,6 +2,7 @@ import { request } from 'node:http';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createComponents } from '../components.js';
 import { startHttpServer, type RunningServer } from './serve.js';
 
 let server: RunningServer;
@@ -9,6 +10,7 @@ beforeAll(async () => {
   server = await startHttpServer({
     port: 0,
     corsOrigins: ['https://reader.example'],
+    components: createComponents({}),
   });
 });
 afterAll(() => server.close());

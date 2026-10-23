@@ -158,7 +158,9 @@ describe('CqrsToolRuntime.dispatch', () => {
 describe('help and completion', () => {
   it('lists operations sorted, in text and as an envelope', () => {
     const r = runtime();
-    expect(r.help('indie-writer-studio')).toMatch(/Usage: indie-writer-studio[\s\S]*demo\.echo[\s\S]*demo\.run/);
+    expect(r.help('indie-writer-studio')).toMatch(
+      /Usage: indie-writer-studio[\s\S]*demo\.echo[\s\S]*demo\.run/,
+    );
     expect(r.helpEnvelope('h').data).toMatchObject({
       operations: [{ name: 'demo.echo' }, { name: 'demo.run' }],
     });

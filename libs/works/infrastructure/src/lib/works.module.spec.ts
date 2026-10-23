@@ -3,11 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CqrsToolRuntime } from '@indie-writer-studio/cqrs-tool-runtime';
+import { TypeDBLiteModule } from '@indie-writer-studio/typedblite';
 import { createWorksToolOperations } from '@indie-writer-studio/works-application';
+import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { WORKS_SCHEMA } from './works.schema.js';
 import { WorksModule } from './works.module.js';
 
 const closers: (() => Promise<void>)[] = [];
@@ -15,10 +18,15 @@ afterEach(async () => {
   await Promise.all(closers.splice(0).map((close) => close()));
 });
 
-const boot = async (dataDir?: string) => {
-  const context = await NestFactory.createApplicationContext(WorksModule.register({ dataDir }), {
-    logger: false,
-  });
+const boot = async (location?: string) => {
+  @Module({
+    imports: [
+      TypeDBLiteModule.register({ location, schemas: [WORKS_SCHEMA] }),
+      WorksModule.register(),
+    ],
+  })
+  class Root {}
+  const context = await NestFactory.createApplicationContext(Root, { logger: false });
   closers.push(() => context.close());
   return new CqrsToolRuntime({
     commandBus: context.get(CommandBus),
@@ -49,13 +57,14 @@ describe('WorksModule', () => {
     expect(stamp).toBeLessThanOrEqual(Date.now() + 1);
   });
 
-  it('keeps works across a restart when given a data directory', async () => {
+  it('keeps works across a restart when the database is a file', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'works-module-'));
     try {
-      const first = await boot(dir);
+      const location = join(dir, 'indie-writer.db');
+      const first = await boot(location);
       await first.dispatch('works.work.add', { title: 'Salt Road' });
       await closers.splice(0)[0]?.();
-      const second = await boot(dir);
+      const second = await boot(location);
       const listed = await second.dispatch('works.work.list', {});
       expect((listed.data as { works: { title: string }[] }).works.map((w) => w.title)).toEqual([
         'Salt Road',
@@ -65,7 +74,7 @@ describe('WorksModule', () => {
     }
   });
 
-  it('keeps nothing across a restart without a data directory', async () => {
+  it('keeps nothing across a restart when the database is in memory', async () => {
     const first = await boot();
     await first.dispatch('works.work.add', { title: 'Gone' });
     await closers.splice(0)[0]?.();

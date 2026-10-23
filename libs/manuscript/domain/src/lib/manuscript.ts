@@ -19,7 +19,6 @@ export interface Manuscript {
   readonly front: readonly ManuscriptNode[];
   readonly main: readonly ManuscriptNode[];
   readonly back: readonly ManuscriptNode[];
-  readonly updatedAt: string;
 }
 
 export type ManuscriptErrorCode =
@@ -71,8 +70,8 @@ export function parseWorkId(value: string): string {
   return value;
 }
 
-export function emptyManuscript(workId: string, now: string): Manuscript {
-  return { workId: parseWorkId(workId), front: [], main: [], back: [], updatedAt: now };
+export function emptyManuscript(workId: string): Manuscript {
+  return { workId: parseWorkId(workId), front: [], main: [], back: [] };
 }
 
 export function wordCount(text: string): number {
@@ -176,13 +175,11 @@ function rewrite(
 const onMatters = (
   manuscript: Manuscript,
   change: (nodes: readonly ManuscriptNode[]) => readonly ManuscriptNode[],
-  now: string,
 ): Manuscript => ({
   ...manuscript,
   front: change(manuscript.front),
   main: change(manuscript.main),
   back: change(manuscript.back),
-  updatedAt: now,
 });
 
 function insertAt(
@@ -207,12 +204,7 @@ export interface Destination {
 }
 
 /** Puts `node` where `destination` says, in a manuscript that no longer holds it. */
-function place(
-  manuscript: Manuscript,
-  node: ManuscriptNode,
-  destination: Destination,
-  now: string,
-): Manuscript {
+function place(manuscript: Manuscript, node: ManuscriptNode, destination: Destination): Manuscript {
   if (destination.parentId !== undefined && destination.matter !== undefined) {
     return invalidPlacement('Give a parent or a matter, not both.');
   }
@@ -226,10 +218,8 @@ function place(
       return invalidPlacement(`Nodes cannot nest deeper than ${MAX_DEPTH} levels.`);
     }
     const inserted = insertAt(parent.children, node, destination.position);
-    return onMatters(
-      manuscript,
-      (nodes) => rewrite(nodes, parent.id, (p) => ({ ...p, children: inserted })),
-      now,
+    return onMatters(manuscript, (nodes) =>
+      rewrite(nodes, parent.id, (p) => ({ ...p, children: inserted })),
     );
   }
   const matter = parseMatter(destination.matter ?? 'main');
@@ -237,7 +227,7 @@ function place(
     return invalidPlacement(`The ${matter} matter cannot hold a ${node.kind} at its top level.`);
   }
   const inserted = insertAt(manuscript[matter], node, destination.position);
-  return { ...manuscript, [matter]: inserted, updatedAt: now };
+  return { ...manuscript, [matter]: inserted };
 }
 
 export interface NewNode extends Destination {
@@ -247,7 +237,7 @@ export interface NewNode extends Destination {
   readonly body?: string | undefined;
 }
 
-export function addNode(manuscript: Manuscript, input: NewNode, now: string): Manuscript {
+export function addNode(manuscript: Manuscript, input: NewNode): Manuscript {
   if (input.id === '') invalidNode('A node needs an id.');
   if (locate(manuscript, input.id)) invalidNode(`A node with id '${input.id}' already exists.`);
   const node: ManuscriptNode = {
@@ -257,7 +247,7 @@ export function addNode(manuscript: Manuscript, input: NewNode, now: string): Ma
     body: parseBody(input.body ?? ''),
     children: [],
   };
-  return place(manuscript, node, input, now);
+  return place(manuscript, node, input);
 }
 
 export interface NodePatch {
@@ -265,43 +255,30 @@ export interface NodePatch {
   readonly body?: string | undefined;
 }
 
-export function updateNode(
-  manuscript: Manuscript,
-  id: string,
-  patch: NodePatch,
-  now: string,
-): Manuscript {
+export function updateNode(manuscript: Manuscript, id: string, patch: NodePatch): Manuscript {
   mustLocate(manuscript, id);
   const title = patch.title === undefined ? undefined : parseTitle(patch.title);
   const body = patch.body === undefined ? undefined : parseBody(patch.body);
-  return onMatters(
-    manuscript,
-    (nodes) =>
-      rewrite(nodes, id, (node) => ({
-        ...node,
-        ...(title === undefined ? {} : { title }),
-        ...(body === undefined ? {} : { body }),
-      })),
-    now,
+  return onMatters(manuscript, (nodes) =>
+    rewrite(nodes, id, (node) => ({
+      ...node,
+      ...(title === undefined ? {} : { title }),
+      ...(body === undefined ? {} : { body }),
+    })),
   );
 }
 
 /** Removes a node and everything beneath it. */
-export function removeNode(manuscript: Manuscript, id: string, now: string): Manuscript {
+export function removeNode(manuscript: Manuscript, id: string): Manuscript {
   mustLocate(manuscript, id);
-  return onMatters(manuscript, (nodes) => rewrite(nodes, id, () => undefined), now);
+  return onMatters(manuscript, (nodes) => rewrite(nodes, id, () => undefined));
 }
 
 /**
  * Moves a node, with everything beneath it. The position is an index among the new siblings
  * once the node has left its old place, so moving within one list reads naturally.
  */
-export function moveNode(
-  manuscript: Manuscript,
-  id: string,
-  destination: Destination,
-  now: string,
-): Manuscript {
+export function moveNode(manuscript: Manuscript, id: string, destination: Destination): Manuscript {
   const { trail } = mustLocate(manuscript, id);
   const node = trail.at(-1) as ManuscriptNode;
   if (destination.parentId === undefined && destination.matter === undefined) {
@@ -313,8 +290,8 @@ export function moveNode(
       invalidPlacement('A node cannot be moved into itself or beneath itself.');
     }
   }
-  const without = onMatters(manuscript, (nodes) => rewrite(nodes, id, () => undefined), now);
-  return place(without, node, destination, now);
+  const without = onMatters(manuscript, (nodes) => rewrite(nodes, id, () => undefined));
+  return place(without, node, destination);
 }
 
 export interface OutlineNode {

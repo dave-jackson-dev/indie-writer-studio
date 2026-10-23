@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createWork, type Work } from '@indie-writer-studio/works-domain';
+import {
+  addEdition,
+  createWork,
+  publishEdition,
+  type Work,
+} from '@indie-writer-studio/works-domain';
 import type { WorkRepository } from '@indie-writer-studio/works-application';
 
 const at = '2026-11-01T10:00:00.000Z';
@@ -88,6 +93,57 @@ export function workRepositoryContract(name: string, make: () => Promise<WorkRep
       const repo = await make();
       await Promise.all(Array.from({ length: 12 }, (_, i) => repo.save(sample(`w${i}`))));
       expect(await repo.list()).toHaveLength(12);
+    });
+
+    it('round-trips every field, including editions with their optional fields', async () => {
+      const repo = await make();
+      let work = createWork(
+        'w1',
+        { title: 'Salt', subtitle: 'A Novel', synopsis: 'Two sisters.' },
+        at,
+      );
+      work = addEdition(work, { label: 'First', notes: 'typo fixes' }, at);
+      work = addEdition(work, {}, at);
+      work = publishEdition(work, 1, '2026-11-02', at);
+      await repo.save(work);
+      expect(await repo.get('w1')).toEqual(work);
+    });
+
+    it('round-trips text that needs care: newlines, quotes, control characters, unicode, long', async () => {
+      const repo = await make();
+      for (const [i, synopsis] of [
+        'line one\nline two\ttabbed\r\n',
+        'with "quotes" and \\ backslashes',
+        'control \u0001 \u007f characters',
+        'unicode é 日本語 🙂',
+        'x'.repeat(5000),
+      ].entries()) {
+        const work = createWork(`t${i}`, { title: `T${i}`, synopsis }, at);
+        await repo.save(work);
+        expect(await repo.get(`t${i}`)).toEqual(work);
+      }
+    });
+
+    it('drops an edition that a replacing save no longer has', async () => {
+      const repo = await make();
+      const withEditions = addEdition(
+        addEdition(createWork('w1', { title: 'Salt' }, at), {}, at),
+        {},
+        at,
+      );
+      await repo.save(withEditions);
+      await repo.save({ ...withEditions, editions: withEditions.editions.slice(0, 1) });
+      expect((await repo.get('w1'))?.editions.map((e) => e.number)).toEqual([1]);
+    });
+
+    it('keeps one work’s editions apart from another’s, with the same edition numbers', async () => {
+      const repo = await make();
+      await repo.save(addEdition(createWork('a', { title: 'A' }, at), { label: 'A first' }, at));
+      await repo.save(addEdition(createWork('b', { title: 'B' }, at), { label: 'B first' }, at));
+      expect((await repo.get('a'))?.editions.map((e) => e.label)).toEqual(['A first']);
+      expect((await repo.get('b'))?.editions.map((e) => e.label)).toEqual(['B first']);
+      await repo.remove('a');
+      expect((await repo.get('b'))?.editions.map((e) => e.label)).toEqual(['B first']);
     });
 
     it('hands back copies, so a caller cannot change what is stored', async () => {

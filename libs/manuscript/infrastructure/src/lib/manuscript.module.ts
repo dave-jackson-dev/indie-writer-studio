@@ -1,25 +1,27 @@
 import {
-  MANUSCRIPT_CLOCK,
   MANUSCRIPT_HANDLERS,
   MANUSCRIPT_ID_GENERATOR,
   MANUSCRIPT_REPOSITORY,
 } from '@indie-writer-studio/manuscript-application';
+import {
+  CASCADE_HOOKS,
+  TYPEDBLITE_DATABASE,
+  type CascadeHooks,
+  type Database,
+} from '@indie-writer-studio/typedblite';
 import { Module, type DynamicModule } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
-import { InMemoryManuscriptRepository } from './in-memory-manuscript-repository.js';
-import { JsonFileManuscriptRepository } from './json-file-manuscript-repository.js';
-import { SystemClock, UuidGenerator } from './system-adapters.js';
+import { UuidGenerator } from './system-adapters.js';
+import { TypeDBLiteManuscriptRepository } from './typedblite-manuscript-repository.js';
 
-export interface ManuscriptModuleOptions {
-  /** Where manuscripts are kept. Without one, they live in memory and vanish on exit. */
-  readonly dataDir?: string | undefined;
-}
-
-/** The real adapters behind every port the manuscript handlers depend on. */
+/**
+ * The manuscript handlers over the shared database. The database itself is provided by the
+ * application (`TypeDBLiteModule`), with `MANUSCRIPT_SCHEMA` after `WORKS_SCHEMA` among its schemas.
+ */
 @Module({})
 export class ManuscriptModule {
-  static register(options: ManuscriptModuleOptions = {}): DynamicModule {
+  static register(): DynamicModule {
     return {
       module: ManuscriptModule,
       imports: [CqrsModule],
@@ -27,13 +29,11 @@ export class ManuscriptModule {
         ...MANUSCRIPT_HANDLERS,
         {
           provide: MANUSCRIPT_REPOSITORY,
-          useValue:
-            options.dataDir === undefined
-              ? new InMemoryManuscriptRepository()
-              : new JsonFileManuscriptRepository(options.dataDir),
+          inject: [TYPEDBLITE_DATABASE, CASCADE_HOOKS],
+          useFactory: (database: Database, hooks: CascadeHooks) =>
+            new TypeDBLiteManuscriptRepository(database, hooks),
         },
         { provide: MANUSCRIPT_ID_GENERATOR, useValue: new UuidGenerator() },
-        { provide: MANUSCRIPT_CLOCK, useValue: new SystemClock() },
       ],
     };
   }

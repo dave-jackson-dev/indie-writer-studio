@@ -9,3 +9,15 @@ default:
     - features/steps/**/*.ts
   format:
     - progress
+
+# The CLI starts a process per operation, so only the features that exercise argument parsing run
+# against it. The REPL, sidecar and HTTP assemblies run every feature.
+cli:
+  paths:
+    - features/system.feature
+    - features/works.feature
+  import:
+    - features/support/**/*.ts
+    - features/steps/**/*.ts
+  format:
+    - progress

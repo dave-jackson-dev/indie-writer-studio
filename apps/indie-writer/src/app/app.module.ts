@@ -10,7 +10,11 @@ export class AppModule {
   static forComponents(components: readonly Component[] = COMPONENTS): DynamicModule {
     return {
       module: AppModule,
-      imports: [CqrsModule, ...components.map((component) => component.module)],
+      imports: [
+        CqrsModule,
+        ...new Set(components.flatMap((component) => component.requires ?? [])),
+        ...components.map((component) => component.module),
+      ],
       providers: [GetHealthHandler],
     };
   }

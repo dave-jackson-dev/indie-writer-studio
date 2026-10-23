@@ -16,6 +16,13 @@ export class ManuscriptError extends Error {
   }
 }
 
+/** The Work a manuscript belongs to does not exist. */
+export class ManuscriptWorkNotFoundError extends ManuscriptError {
+  constructor(workId: string) {
+    super('WORK_NOT_FOUND', `There is no work with id '${workId}'.`, TOOL_EXIT_CODES.notFound);
+  }
+}
+
 const EXIT_CODES: Record<ManuscriptErrorCode, number> = {
   INVALID_NODE: TOOL_EXIT_CODES.usage,
   INVALID_PLACEMENT: TOOL_EXIT_CODES.usage,

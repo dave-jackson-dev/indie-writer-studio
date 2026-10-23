@@ -220,6 +220,23 @@ Feature: The manuscript
     Then the outcome is an error with code "INVALID_WORK_ID"
     And the exit code is 2
 
+  Scenario: A manuscript cannot be started for a Work that does not exist
+    When Ada adds a chapter "Ghost" to the main matter of the work with id "no-such-work"
+    Then the outcome is an error with code "WORK_NOT_FOUND"
+    And the exit code is 5
+
+  Scenario: The outline of a Work that does not exist is refused, not shown as empty
+    When Ada asks for the outline of the work with id "no-such-work"
+    Then the outcome is an error with code "WORK_NOT_FOUND"
+    And the exit code is 5
+
+  Scenario: Removing a Work takes its manuscript with it
+    Given Ada has added a chapter "One" to the main matter of "The Salt Road"
+    And Ada has noted the id of "The Salt Road"
+    When Ada removes the work "The Salt Road"
+    And Ada asks for the outline of the noted work
+    Then the outcome is an error with code "WORK_NOT_FOUND"
+
   Scenario: A work id that could escape the data directory is refused when writing too
     When Ada adds a chapter "Escape" to the main matter of the work with id "../../etc"
     Then the outcome is an error with code "INVALID_WORK_ID"

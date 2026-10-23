@@ -4,6 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 import type { Envelope, OperateApp } from './operate-app.ts';
 
+interface Pending {
+  resolve(envelope: Envelope): void;
+  reject(error: Error): void;
+}
+
 export const BUNDLE = join(
   dirname(fileURLToPath(import.meta.url)),
   '../../../dist/apps/indie-writer/main.js',
@@ -28,7 +33,8 @@ export class BinaryApp implements OperateApp {
   readonly assembly: string;
   private child: ChildProcessWithoutNullStreams | undefined;
   private url: string | undefined;
-  private pending: ((envelope: Envelope) => void)[] = [];
+  private pending: Pending[] = [];
+  private childStderr = '';
   private buffer = '';
 
   constructor(
@@ -60,12 +66,10 @@ export class BinaryApp implements OperateApp {
     switch (this.transport) {
       case 'cli':
         return JSON.parse(firstLine((await this.run([operation, '--json', json])).stdout));
-      case 'repl': {
-        const line = `${operation} --json ${replQuote(json)}\nexit\n`;
-        return JSON.parse(firstLine((await this.run(['--repl', '--json'], line)).stdout));
-      }
+      case 'repl':
+        return this.lineSession(['--repl', '--json'], `${operation} --json ${replQuote(json)}`);
       case 'sidecar':
-        return this.sidecar(operation, input);
+        return this.lineSession(['--sidecar'], JSON.stringify({ operation, input }));
       case 'http': {
         const response = await fetch(`${await this.startHttp()}/operations/${operation}`, {
           method: 'POST',
@@ -77,26 +81,62 @@ export class BinaryApp implements OperateApp {
     }
   }
 
-  private sidecar(operation: string, input: Record<string, unknown>): Promise<Envelope> {
+  /**
+   * One long-lived process that answers one envelope line per request line, in order: the REPL
+   * (`--repl --json`) and the sidecar (`--sidecar`) both speak this way. It lives for the scenario,
+   * so the engine is loaded once, and a restart ends it and starts another.
+   */
+  private lineSession(args: string[], request: string): Promise<Envelope> {
     if (!this.child) {
-      const child = spawn(process.execPath, [BUNDLE, '--sidecar'], { env: this.env() });
+      const child = spawn(process.execPath, [BUNDLE, ...args], { env: this.env() });
+      this.childStderr = '';
+      child.stderr.on('data', (chunk) => (this.childStderr += chunk));
       child.stdout.on('data', (chunk) => {
         this.buffer += chunk;
         let newline = this.buffer.indexOf('\n');
         while (newline >= 0) {
           const line = this.buffer.slice(0, newline);
           this.buffer = this.buffer.slice(newline + 1);
-          this.pending.shift()?.(JSON.parse(line) as Envelope);
+          this.answer(line);
           newline = this.buffer.indexOf('\n');
         }
       });
+      // A child that ends, or cannot start, fails what is waiting on it instead of leaving it to time out.
+      const gone = (why: string) => {
+        const waiting = this.pending.splice(0);
+        for (const { reject } of waiting) {
+          reject(new Error(`The app ${why} with a request pending.${this.stderrNote()}`));
+        }
+      };
+      child.on('error', (error) => gone(`could not run (${error.message})`));
+      child.on('exit', (code, signal) => gone(`exited (${signal ?? `code ${String(code)}`})`));
       this.child = child;
     }
     const child = this.child;
-    return new Promise((resolve) => {
-      this.pending.push(resolve);
-      child.stdin.write(`${JSON.stringify({ operation, input })}\n`);
+    return new Promise((resolve, reject) => {
+      this.pending.push({ resolve, reject });
+      child.stdin.write(`${request}\n`, (error) => {
+        if (error)
+          reject(new Error(`Could not send the request: ${error.message}.${this.stderrNote()}`));
+      });
     });
+  }
+
+  /** One line of output is one envelope for the oldest waiting request; anything else is an error to see. */
+  private answer(line: string): void {
+    const waiting = this.pending.shift();
+    if (waiting === undefined) return;
+    try {
+      waiting.resolve(JSON.parse(line) as Envelope);
+    } catch {
+      waiting.reject(
+        new Error(`The app printed something that is not an envelope: ${line.slice(0, 200)}`),
+      );
+    }
+  }
+
+  private stderrNote(): string {
+    return this.childStderr.trim() === '' ? '' : ` It said: ${this.childStderr.trim().slice(-500)}`;
   }
 
   private async startHttp(): Promise<string> {
@@ -128,10 +168,10 @@ export class BinaryApp implements OperateApp {
     this.url = undefined;
     this.pending = [];
     this.buffer = '';
-    if (!child) return;
+    if (!child || child.exitCode !== null || child.signalCode !== null) return;
     await new Promise<void>((resolve) => {
       child.on('close', () => resolve());
-      if (this.transport === 'sidecar') child.stdin.end();
+      if (this.transport === 'sidecar' || this.transport === 'repl') child.stdin.end();
       else child.kill('SIGTERM');
     });
   }

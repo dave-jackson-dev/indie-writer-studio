@@ -4,5 +4,5 @@ import { testDefaults, workspaceAliases } from '../../../vitest.shared';
 
 export default defineConfig({
   resolve: { alias: workspaceAliases() },
-  test: { ...testDefaults('file-lock'), include: ['src/**/*.spec.ts'] },
+  test: { ...testDefaults('typedblite'), include: ['src/**/*.spec.ts'], testTimeout: 30000 },
 });

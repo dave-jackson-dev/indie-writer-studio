@@ -13,6 +13,8 @@ import {
   addNode,
   addNodeToWorkId,
   moveNode,
+  noteWorkId,
+  outlineOfNotedWork,
   outlineOfWorkId,
   removeNode,
   removeNodeById,
@@ -166,6 +168,14 @@ When(
     await actor.attemptsTo(outlineOfWorkId(id));
   },
 );
+
+Given('{actor} has noted the id of {string}', async (actor: Author, work: string) => {
+  await actor.attemptsTo(noteWorkId(work));
+});
+
+When('{actor} asks for the outline of the noted work', async (actor: Author) => {
+  await actor.attemptsTo(outlineOfNotedWork());
+});
 
 Then('the outline of {string} is empty', async function (this: IndieWriterWorld, work: string) {
   assert.deepEqual(await author(this).ask(theOutlineRows(work)), []);

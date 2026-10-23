@@ -4,6 +4,12 @@ import { createComponents } from './components.js';
 import { operationsFor } from './operations.js';
 
 describe('components', () => {
+  it('shares one database registration among all components', () => {
+    const [works, manuscript] = createComponents({});
+    expect(works?.requires?.length).toBe(1);
+    expect(manuscript?.requires?.[0]).toBe(works?.requires?.[0]);
+  });
+
   it('composes the works catalog and the manuscript', () => {
     const components = createComponents({});
     expect(components.map((c) => c.name)).toEqual(['works', 'manuscript']);

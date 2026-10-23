@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/file-lock-spec",
+    "outDir": "../../../dist/out-tsc/typedblite-spec",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"]

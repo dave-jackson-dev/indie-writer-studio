@@ -1,6 +1,11 @@
-import { parseWorkId, type Manuscript } from '@indie-writer-studio/manuscript-domain';
+import {
+  emptyManuscript,
+  parseWorkId,
+  type Manuscript,
+} from '@indie-writer-studio/manuscript-domain';
 import { describe, expect, it } from 'vitest';
 
+import { ManuscriptWorkNotFoundError } from './errors.js';
 import {
   AddNodeHandler,
   GetNodeHandler,
@@ -9,7 +14,7 @@ import {
   RemoveNodeHandler,
   UpdateNodeHandler,
 } from './handlers.js';
-import type { Clock, IdGenerator, ManuscriptRepository } from './ports.js';
+import type { IdGenerator, ManuscriptRepository } from './ports.js';
 import {
   AddNodeCommand,
   GetNodeQuery,
@@ -19,18 +24,28 @@ import {
   UpdateNodeCommand,
 } from './requests.js';
 
-class MemoryRepo implements ManuscriptRepository {
+/**
+ * A repository that honours the port: a manuscript exists for a Work that exists, `get` answers
+ * undefined for a Work that does not, and `update` refuses one. `checkIds` makes it validate the
+ * work id before anything else, as the database-backed adapter does.
+ */
+class FakeRepo implements ManuscriptRepository {
   readonly store = new Map<string, Manuscript>();
+  constructor(
+    readonly works: Set<string>,
+    private readonly checkIds = false,
+  ) {}
   async get(workId: string) {
-    return this.store.get(workId);
+    if (this.checkIds) parseWorkId(workId);
+    if (!this.works.has(workId)) return undefined;
+    return this.store.get(workId) ?? emptyManuscript(workId);
   }
-  async update(workId: string, change: (current: Manuscript | undefined) => Manuscript) {
-    const next = change(this.store.get(workId));
+  async update(workId: string, change: (current: Manuscript) => Manuscript) {
+    if (this.checkIds) parseWorkId(workId);
+    if (!this.works.has(workId)) throw new ManuscriptWorkNotFoundError(workId);
+    const next = change(this.store.get(workId) ?? emptyManuscript(workId));
     this.store.set(workId, next);
     return next;
-  }
-  async remove(workId: string) {
-    return this.store.delete(workId);
   }
 }
 
@@ -38,23 +53,23 @@ const ids = (): IdGenerator => {
   let n = 0;
   return { next: () => `n${++n}` };
 };
-const clock: Clock = { now: () => '2026-11-01T10:00:00.000Z' };
 
-const setup = () => {
-  const repo = new MemoryRepo();
+const W = 'w1';
+
+const setup = (works: string[] = [W], checkIds = false) => {
+  const repo = new FakeRepo(new Set(works), checkIds);
   const generator = ids();
   return {
     repo,
-    add: new AddNodeHandler(repo, generator, clock),
+    add: new AddNodeHandler(repo, generator),
     get: new GetNodeHandler(repo),
     outline: new GetOutlineHandler(repo),
-    update: new UpdateNodeHandler(repo, clock),
-    move: new MoveNodeHandler(repo, clock),
-    remove: new RemoveNodeHandler(repo, clock),
+    update: new UpdateNodeHandler(repo),
+    move: new MoveNodeHandler(repo),
+    remove: new RemoveNodeHandler(repo),
   };
 };
 
-const W = 'w1';
 const addChapter = (
   s: ReturnType<typeof setup>,
   title: string,
@@ -82,22 +97,54 @@ describe('manuscript handlers', () => {
       code: 'INVALID_PLACEMENT',
       exitCode: 2,
     });
-    expect(await s.repo.get(W)).toBeUndefined();
+    expect(s.repo.store.size).toBe(0);
   });
 
-  it('refuses an unsafe work id with INVALID_WORK_ID', async () => {
-    const s = setup();
+  it('refuses a Work that does not exist as WORK_NOT_FOUND (exit 5) on every operation', async () => {
+    const s = setup([]);
+    const expected = { code: 'WORK_NOT_FOUND', exitCode: 5 };
+    await expect(addChapter(s, 'Ghost')).rejects.toMatchObject(expected);
+    await expect(s.outline.execute(new GetOutlineQuery(W))).rejects.toMatchObject(expected);
+    await expect(s.get.execute(new GetNodeQuery(W, 'n1'))).rejects.toMatchObject(expected);
+    await expect(
+      s.update.execute(new UpdateNodeCommand(W, 'n1', { title: 'x' })),
+    ).rejects.toMatchObject(expected);
+    await expect(
+      s.move.execute(new MoveNodeCommand(W, 'n1', { matter: 'back' })),
+    ).rejects.toMatchObject(expected);
+    await expect(s.remove.execute(new RemoveNodeCommand(W, 'n1'))).rejects.toMatchObject(expected);
+    expect(s.repo.store.size).toBe(0);
+  });
+
+  it('an error class for it exists with the same code', () => {
+    expect(new ManuscriptWorkNotFoundError('w9')).toMatchObject({
+      code: 'WORK_NOT_FOUND',
+      exitCode: 5,
+    });
+  });
+
+  it('maps an unsafe work id to INVALID_WORK_ID on every operation, even when the repository rejects it first', async () => {
+    const s = setup([W], true);
+    const expected = { code: 'INVALID_WORK_ID', exitCode: 2 };
     await expect(
       s.add.execute(
         new AddNodeCommand('../x', 'chapter', 'T', undefined, undefined, undefined, undefined),
       ),
-    ).rejects.toMatchObject({ code: 'INVALID_WORK_ID', exitCode: 2 });
-    await expect(s.outline.execute(new GetOutlineQuery('../x'))).rejects.toMatchObject({
-      code: 'INVALID_WORK_ID',
-    });
+    ).rejects.toMatchObject(expected);
+    await expect(s.outline.execute(new GetOutlineQuery('../x'))).rejects.toMatchObject(expected);
+    await expect(s.get.execute(new GetNodeQuery('../x', 'n1'))).rejects.toMatchObject(expected);
+    await expect(
+      s.update.execute(new UpdateNodeCommand('../x', 'n1', { title: 'x' })),
+    ).rejects.toMatchObject(expected);
+    await expect(
+      s.move.execute(new MoveNodeCommand('../x', 'n1', { matter: 'back' })),
+    ).rejects.toMatchObject(expected);
+    await expect(s.remove.execute(new RemoveNodeCommand('../x', 'n1'))).rejects.toMatchObject(
+      expected,
+    );
   });
 
-  it('answers an empty outline for a work with no manuscript, without storing one', async () => {
+  it('answers an empty outline for a Work that has no manuscript yet', async () => {
     const s = setup();
     expect(await s.outline.execute(new GetOutlineQuery(W))).toEqual({
       front: [],
@@ -105,7 +152,6 @@ describe('manuscript handlers', () => {
       back: [],
       totalWords: 0,
     });
-    expect(s.repo.store.size).toBe(0);
   });
 
   it('returns the outline with word counts and without the text', async () => {
@@ -118,7 +164,7 @@ describe('manuscript handlers', () => {
     expect(JSON.stringify(outline)).not.toContain('one two three');
   });
 
-  it('gets one node with its text, and refuses an unknown node or manuscript', async () => {
+  it('gets one node with its text, and refuses an unknown node', async () => {
     const s = setup();
     const { node } = await addChapter(s, 'One');
     await s.update.execute(new UpdateNodeCommand(W, node.id, { body: 'hello' }));
@@ -126,9 +172,6 @@ describe('manuscript handlers', () => {
     await expect(s.get.execute(new GetNodeQuery(W, 'nope'))).rejects.toMatchObject({
       code: 'NODE_NOT_FOUND',
       exitCode: 5,
-    });
-    await expect(s.get.execute(new GetNodeQuery('other', 'n1'))).rejects.toMatchObject({
-      code: 'NODE_NOT_FOUND',
     });
   });
 
@@ -153,7 +196,7 @@ describe('manuscript handlers', () => {
     ]);
   });
 
-  it('does not create a manuscript when updating, moving or removing on a work that has none', async () => {
+  it('answers NODE_NOT_FOUND for an unknown node when the Work has no manuscript yet', async () => {
     const s = setup();
     await expect(
       s.update.execute(new UpdateNodeCommand(W, 'n1', { title: 'x' })),
@@ -185,45 +228,5 @@ describe('manuscript handlers', () => {
     const s = setup();
     await Promise.all([addChapter(s, 'A'), addChapter(s, 'B'), addChapter(s, 'C')]);
     expect((await s.repo.get(W))?.main).toHaveLength(3);
-  });
-
-  it('maps an unsafe work id to INVALID_WORK_ID on every operation, even when the repository rejects it first', async () => {
-    // Like the JSON adapter, which names a file after the work id and so checks it before anything else.
-    class CheckingRepo extends MemoryRepo {
-      override async get(workId: string) {
-        parseWorkId(workId);
-        return super.get(workId);
-      }
-      override async update(
-        workId: string,
-        change: (current: Manuscript | undefined) => Manuscript,
-      ) {
-        parseWorkId(workId);
-        return super.update(workId, change);
-      }
-    }
-    const repo = new CheckingRepo();
-    const generator = ids();
-    const handlers = {
-      add: new AddNodeHandler(repo, generator, clock),
-      update: new UpdateNodeHandler(repo, clock),
-      move: new MoveNodeHandler(repo, clock),
-      remove: new RemoveNodeHandler(repo, clock),
-    };
-    const expected = { code: 'INVALID_WORK_ID', exitCode: 2 };
-    await expect(
-      handlers.add.execute(
-        new AddNodeCommand('../x', 'chapter', 'T', undefined, undefined, undefined, undefined),
-      ),
-    ).rejects.toMatchObject(expected);
-    await expect(
-      handlers.update.execute(new UpdateNodeCommand('../x', 'n1', { title: 'x' })),
-    ).rejects.toMatchObject(expected);
-    await expect(
-      handlers.move.execute(new MoveNodeCommand('../x', 'n1', { matter: 'back' })),
-    ).rejects.toMatchObject(expected);
-    await expect(
-      handlers.remove.execute(new RemoveNodeCommand('../x', 'n1')),
-    ).rejects.toMatchObject(expected);
   });
 });

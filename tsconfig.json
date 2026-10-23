@@ -5,6 +5,9 @@
   "references": [
     {
       "path": "./libs/shared/cqrs-tool-runtime"
+    },
+    {
+      "path": "./apps/indie-writer"
     }
   ],
   "compilerOptions": {}

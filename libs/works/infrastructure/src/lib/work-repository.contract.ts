@@ -42,6 +42,54 @@ export function workRepositoryContract(name: string, make: () => Promise<WorkRep
       expect(await repo.list()).toEqual([]);
     });
 
+    it('updates a work in place and returns the new version', async () => {
+      const repo = await make();
+      await repo.save(sample('a', 'One'));
+      const next = await repo.update('a', (work) => ({ ...work, title: 'Two' }));
+      expect(next?.title).toBe('Two');
+      expect((await repo.get('a'))?.title).toBe('Two');
+    });
+
+    it('answers undefined, and does not create anything, when updating a work that is not there', async () => {
+      const repo = await make();
+      let called = false;
+      const result = await repo.update('nope', (work) => {
+        called = true;
+        return work;
+      });
+      expect(result).toBeUndefined();
+      expect(called).toBe(false);
+      expect(await repo.list()).toEqual([]);
+    });
+
+    it('stores nothing when the change throws, and passes the error on', async () => {
+      const repo = await make();
+      await repo.save(sample('a', 'Keep'));
+      await expect(
+        repo.update('a', () => {
+          throw new Error('refused');
+        }),
+      ).rejects.toThrow('refused');
+      expect((await repo.get('a'))?.title).toBe('Keep');
+    });
+
+    it('applies every one of many concurrent updates', async () => {
+      const repo = await make();
+      await repo.save(sample('a', 't'));
+      await Promise.all(
+        Array.from({ length: 12 }, () =>
+          repo.update('a', (work) => ({ ...work, title: `${work.title}x` })),
+        ),
+      );
+      expect((await repo.get('a'))?.title).toBe(`t${'x'.repeat(12)}`);
+    });
+
+    it('keeps every one of many concurrent saves', async () => {
+      const repo = await make();
+      await Promise.all(Array.from({ length: 12 }, (_, i) => repo.save(sample(`w${i}`))));
+      expect(await repo.list()).toHaveLength(12);
+    });
+
     it('hands back copies, so a caller cannot change what is stored', async () => {
       const repo = await make();
       await repo.save(sample('a', 'Original'));

@@ -69,8 +69,14 @@ Feature: Editions of a Work
     Examples:
       | date       |
       | 2026-02-30 |
+      | 1900-02-29 |
       | 02/11/2026 |
       | tomorrow   |
+
+  Scenario: A leap day is accepted in a leap year, including the century leap year
+    Given Ada has added an edition to "The Salt Road"
+    When Ada publishes edition 1 of "The Salt Road" on "2000-02-29"
+    Then edition 1 of "The Salt Road" is "published" on "2000-02-29"
 
   Scenario: An Edition cannot be added to a Work that does not exist
     When Ada adds an edition to the work with id "no-such-work"

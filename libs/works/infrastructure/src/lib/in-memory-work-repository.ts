@@ -20,6 +20,15 @@ export class InMemoryWorkRepository implements WorkRepository {
     this.works.set(work.id, copy(work));
   }
 
+  /** No `await` between the read and the write, so nothing can interleave. */
+  async update(id: string, change: (work: Work) => Work): Promise<Work | undefined> {
+    const current = this.works.get(id);
+    if (current === undefined) return undefined;
+    const next = copy(change(copy(current)));
+    this.works.set(id, next);
+    return copy(next);
+  }
+
   async remove(id: string): Promise<boolean> {
     return this.works.delete(id);
   }

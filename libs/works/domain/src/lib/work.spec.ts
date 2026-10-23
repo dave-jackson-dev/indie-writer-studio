@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { createWork, updateWork, WorksDomainError, WORK_STATUSES } from './work.js';
+import {
+  createWork,
+  parseWorkStatus,
+  updateWork,
+  WorksDomainError,
+  WORK_STATUSES,
+} from './work.js';
 
 const NOW = '2026-11-01T10:00:00.000Z';
 const LATER = '2026-11-02T09:30:00.000Z';
@@ -102,5 +108,15 @@ describe('updateWork', () => {
 
   it('keeps the editions it already has', () => {
     expect(updateWork(base, { title: 'X' }, LATER).editions).toBe(base.editions);
+  });
+});
+
+describe('parseWorkStatus', () => {
+  it.each(WORK_STATUSES)('accepts %s', (status) => {
+    expect(parseWorkStatus(status)).toBe(status);
+  });
+
+  it.each(['abandoned', '', 'Draft'])('refuses %j as INVALID_WORK', (status) => {
+    expect(fail(() => parseWorkStatus(status)).code).toBe('INVALID_WORK');
   });
 });

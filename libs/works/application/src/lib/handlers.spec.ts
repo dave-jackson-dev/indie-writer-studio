@@ -38,6 +38,13 @@ class MemoryRepo implements WorkRepository {
   async remove(id: string) {
     return this.works.delete(id);
   }
+  async update(id: string, change: (work: Work) => Work) {
+    const current = this.works.get(id);
+    if (!current) return undefined;
+    const next = change(current);
+    this.works.set(id, next);
+    return next;
+  }
 }
 
 const sequence = (): IdGenerator => {
@@ -198,5 +205,44 @@ describe('works handlers', () => {
     await expect(s.editions.execute(new ListEditionsQuery('nope'))).rejects.toMatchObject({
       code: 'WORK_NOT_FOUND',
     });
+  });
+
+  it('numbers editions correctly when two are added to the same work at once', async () => {
+    const s = setup();
+    const { work } = await s.add.execute(new AddWorkCommand('Salt', undefined, undefined));
+    await Promise.all([
+      s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined)),
+      s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined)),
+      s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined)),
+    ]);
+    expect((await s.repo.get(work.id))?.editions.map((e) => e.number)).toEqual([1, 2, 3]);
+  });
+
+  it('leaves exactly one edition published when two are published at once', async () => {
+    const s = setup();
+    const { work } = await s.add.execute(new AddWorkCommand('Salt', undefined, undefined));
+    await s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined));
+    await s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined));
+    await Promise.all([
+      s.publish.execute(new PublishEditionCommand(work.id, 1, '2026-11-02')),
+      s.publish.execute(new PublishEditionCommand(work.id, 2, '2026-11-03')),
+    ]);
+    const editions = (await s.repo.get(work.id))?.editions ?? [];
+    expect(editions.filter((e) => e.status === 'published')).toHaveLength(1);
+  });
+
+  it('does not bring a removed work back when a late update arrives', async () => {
+    const s = setup();
+    const { work } = await s.add.execute(new AddWorkCommand('Salt', undefined, undefined));
+    await s.remove.execute(new RemoveWorkCommand(work.id));
+    await expect(
+      s.update.execute(new UpdateWorkCommand(work.id, { title: 'x' })),
+    ).rejects.toMatchObject({
+      code: 'WORK_NOT_FOUND',
+    });
+    await expect(
+      s.addEdition.execute(new AddEditionCommand(work.id, undefined, undefined)),
+    ).rejects.toMatchObject({ code: 'WORK_NOT_FOUND' });
+    expect(await s.repo.list()).toEqual([]);
   });
 });

@@ -15,6 +15,17 @@ export interface Work {
   readonly updatedAt: string;
 }
 
+/** A status from outside the domain, checked; anything else is refused. */
+export function parseWorkStatus(value: string): WorkStatus {
+  if (!(WORK_STATUSES as readonly string[]).includes(value)) {
+    throw new WorksDomainError(
+      'INVALID_WORK',
+      `'${value}' is not a status; use one of ${WORK_STATUSES.join(', ')}.`,
+    );
+  }
+  return value as WorkStatus;
+}
+
 export type WorksDomainErrorCode =
   'INVALID_WORK' | 'INVALID_EDITION' | 'EDITION_NOT_FOUND' | 'EDITION_CONFLICT';
 
@@ -94,12 +105,7 @@ export function updateWork(work: Work, patch: WorkPatch, now: string): Work {
     patch.synopsis === undefined
       ? oldSynopsis
       : optionalText(patch.synopsis, 'synopsis', SYNOPSIS_MAX, 'INVALID_WORK');
-  if (patch.status !== undefined && !WORK_STATUSES.includes(patch.status)) {
-    throw new WorksDomainError(
-      'INVALID_WORK',
-      `'${String(patch.status)}' is not a status; use one of ${WORK_STATUSES.join(', ')}.`,
-    );
-  }
+  if (patch.status !== undefined) parseWorkStatus(patch.status);
   return {
     ...rest,
     title: patch.title === undefined ? work.title : title(patch.title),

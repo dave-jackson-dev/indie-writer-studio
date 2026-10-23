@@ -8,6 +8,13 @@ export interface WorkRepository {
   save(work: Work): Promise<void>;
   /** True when there was a work to remove. */
   remove(id: string): Promise<boolean>;
+  /**
+   * Reads, changes and stores one work as a single step no other write can interleave with, so
+   * concurrent changes all apply instead of the last one winning. Answers `undefined`, without
+   * calling `change` or creating anything, when there is no such work. If `change` throws, nothing
+   * is stored and the error passes on.
+   */
+  update(id: string, change: (work: Work) => Work): Promise<Work | undefined>;
 }
 
 export interface IdGenerator {

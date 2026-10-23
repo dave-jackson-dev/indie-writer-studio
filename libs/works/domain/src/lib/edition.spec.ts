@@ -101,6 +101,19 @@ describe('publishEdition', () => {
     },
   );
 
+  it.each([
+    ['2000-02-29', true],
+    ['2400-02-29', true],
+    ['1900-02-29', false],
+    ['2100-02-29', false],
+  ])('applies the century leap rules to %s', (date, valid) => {
+    if (valid) {
+      expect(publishEdition(two(), 1, date, LATER).editions[0]?.publishedOn).toBe(date);
+    } else {
+      expect(fail(() => publishEdition(two(), 1, date, LATER)).code).toBe('INVALID_EDITION');
+    }
+  });
+
   it('accepts a leap day only in a leap year', () => {
     expect(publishEdition(two(), 1, '2028-02-29', LATER).editions[0]?.publishedOn).toBe(
       '2028-02-29',

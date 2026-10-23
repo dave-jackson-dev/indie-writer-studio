@@ -3,10 +3,9 @@ import {
   createWork,
   publishEdition,
   updateWork,
-  WORK_STATUSES,
+  parseWorkStatus,
   type Edition,
   type Work,
-  type WorkStatus,
 } from '@indie-writer-studio/works-domain';
 import { Inject } from '@nestjs/common';
 import {
@@ -16,7 +15,7 @@ import {
   type IQueryHandler,
 } from '@nestjs/cqrs';
 
-import { applyRule, WorkNotFoundError, WorksError } from './errors.js';
+import { applyRule, WorkNotFoundError } from './errors.js';
 import {
   CLOCK,
   ID_GENERATOR,
@@ -84,13 +83,7 @@ export class ListWorksHandler implements IQueryHandler<ListWorksQuery, { works: 
 
   async execute(query: ListWorksQuery): Promise<{ works: readonly Work[] }> {
     const { status } = query;
-    if (status !== undefined && !WORK_STATUSES.includes(status as WorkStatus)) {
-      throw new WorksError(
-        'INVALID_WORK',
-        `'${status}' is not a status; use one of ${WORK_STATUSES.join(', ')}.`,
-        2,
-      );
-    }
+    if (status !== undefined) applyRule(() => parseWorkStatus(status));
     const works = await this.repository.list();
     return { works: status === undefined ? works : works.filter((work) => work.status === status) };
   }
@@ -104,9 +97,10 @@ export class UpdateWorkHandler implements ICommandHandler<UpdateWorkCommand, { w
   ) {}
 
   async execute(command: UpdateWorkCommand): Promise<{ work: Work }> {
-    const current = await load(this.repository, command.id);
-    const work = applyRule(() => updateWork(current, command.patch, this.clock.now()));
-    await this.repository.save(work);
+    const work = await this.repository.update(command.id, (current) =>
+      applyRule(() => updateWork(current, command.patch, this.clock.now())),
+    );
+    if (!work) throw new WorkNotFoundError(command.id);
     return { work };
   }
 }
@@ -132,11 +126,12 @@ export class AddEditionHandler implements ICommandHandler<
   ) {}
 
   async execute(command: AddEditionCommand): Promise<{ work: Work; edition: Edition }> {
-    const current = await load(this.repository, command.workId);
-    const work = applyRule(() =>
-      addEdition(current, { label: command.label, notes: command.notes }, this.clock.now()),
+    const work = await this.repository.update(command.workId, (current) =>
+      applyRule(() =>
+        addEdition(current, { label: command.label, notes: command.notes }, this.clock.now()),
+      ),
     );
-    await this.repository.save(work);
+    if (!work) throw new WorkNotFoundError(command.workId);
     return { work, edition: work.editions[work.editions.length - 1] as Edition };
   }
 }
@@ -152,11 +147,12 @@ export class PublishEditionHandler implements ICommandHandler<
   ) {}
 
   async execute(command: PublishEditionCommand): Promise<{ work: Work; edition: Edition }> {
-    const current = await load(this.repository, command.workId);
-    const work = applyRule(() =>
-      publishEdition(current, command.number, command.publishedOn, this.clock.now()),
+    const work = await this.repository.update(command.workId, (current) =>
+      applyRule(() =>
+        publishEdition(current, command.number, command.publishedOn, this.clock.now()),
+      ),
     );
-    await this.repository.save(work);
+    if (!work) throw new WorkNotFoundError(command.workId);
     return { work, edition: editionOf(work, command.number) };
   }
 }

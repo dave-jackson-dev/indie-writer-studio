@@ -30,6 +30,7 @@
     "@nestjs/core": "^11.2.8",
     "@nestjs/cqrs": "^11.0.3",
     "@nestjs/platform-express": "^11.2.8",
+    "@syncfusion/ej2-angular-base": "35.1.37",
     "@syncfusion/ej2-angular-buttons": "35.1.37",
     "@syncfusion/ej2-angular-calendars": "35.1.37",
     "@syncfusion/ej2-angular-dropdowns": "35.1.37",

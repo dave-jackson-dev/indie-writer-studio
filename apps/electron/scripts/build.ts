@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,7 +6,7 @@ import { build } from 'esbuild';
 
 /**
  * Builds the Electron app into `dist/apps/electron`, a directory Electron can run (`electron <dir>`):
- * `main.mjs` (ESM), `preload.cjs` (the sandbox needs CommonJS), the renderer, and a `package.json`
+ * `main.mjs` (ESM), `preload.cjs` (the sandbox needs CommonJS), the renderer (the built Writer app), and a `package.json`
  * naming the entry. Dependencies stay external and resolve from the repository's `node_modules`.
  */
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -54,7 +54,12 @@ await build({
   external: ['electron'],
 });
 
-cpSync(join(root, 'apps/electron/src/renderer'), join(out, 'renderer'), { recursive: true });
+// The renderer is the Writer app (apps/writer), built before this runs; it ships as it was built.
+const writer = join(root, 'dist/apps/writer');
+if (!existsSync(join(writer, 'index.html'))) {
+  throw new Error(`The renderer is not built: ${writer}/index.html is missing (nx build writer).`);
+}
+cpSync(writer, join(out, 'renderer'), { recursive: true });
 writeFileSync(
   join(out, 'package.json'),
   `${JSON.stringify({ name: 'indie-writer-studio', version: '0.0.1', main: 'main.mjs', type: 'module' }, null, 2)}\n`,

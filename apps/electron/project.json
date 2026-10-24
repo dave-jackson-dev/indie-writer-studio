@@ -4,12 +4,18 @@
   "sourceRoot": "apps/electron/src",
   "projectType": "application",
   "tags": ["scope:indie-writer", "type:app"],
-  "implicitDependencies": ["indie-writer"],
+  "implicitDependencies": ["indie-writer", "writer"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["default", "^default", "{workspaceRoot}/tsconfig.base.json"],
+      "dependsOn": ["writer:build"],
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{workspaceRoot}/dist/apps/writer/**/*"
+      ],
       "outputs": ["{workspaceRoot}/dist/apps/electron"],
       "options": {
         "command": "tsx apps/electron/scripts/build.ts",

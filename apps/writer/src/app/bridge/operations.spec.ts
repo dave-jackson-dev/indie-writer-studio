@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IndieWriterBridge } from '@indie-writer-studio/ipc-bridge';
+import type { IndieWriterBridge as PreloadBridge } from '@indie-writer-studio/ipc-bridge';
 
-import { OperationError, requireBridge, runOperation } from './operations';
+import { OperationError, requireBridge, runOperation, type IndieWriterBridge } from './operations';
+
+// The window restates the bridge's shape; this fails to compile if the preload bridge stops fitting it.
+const _preloadFits = (bridge: PreloadBridge): IndieWriterBridge => bridge;
+void _preloadFits;
 
 const envelope = (over: Record<string, unknown>) =>
   ({
@@ -15,7 +19,7 @@ const envelope = (over: Record<string, unknown>) =>
     ...over,
   }) as never;
 
-const bridgeAnswering = (answer: unknown): IndieWriterBridge => ({
+const bridgeAnswering = (answer: unknown): PreloadBridge => ({
   request: async () => answer as never,
   help: async () => answer as never,
 });
@@ -30,7 +34,7 @@ describe('runOperation', () => {
 
   it('passes the operation and its input to the bridge', async () => {
     const seen: unknown[] = [];
-    const bridge: IndieWriterBridge = {
+    const bridge: PreloadBridge = {
       request: async (operation, input) => (seen.push(operation, input), envelope({ data: {} })),
       help: async () => envelope({}),
     };

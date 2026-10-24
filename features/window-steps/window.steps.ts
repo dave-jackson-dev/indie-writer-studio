@@ -138,13 +138,6 @@ When(
   },
 );
 
-Given(
-  '{actor} marks the work {string} as {string} in the window',
-  async (actor: Author, title: string, status: string) => {
-    await actor.attemptsTo(setWorkStatusInWindow(title, status));
-  },
-);
-
 When(
   '{actor} retitles the work {string} to {string} in the window',
   async (actor: Author, title: string, newTitle: string) => {
@@ -194,10 +187,6 @@ When('{actor} removes the work {string} and confirms', async (actor: Author, tit
 // --- editions ------------------------------------------------------------------------------------
 
 When('{actor} selects the work {string}', async (actor: Author, title: string) => {
-  await actor.attemptsTo(selectWorkInWindow(title));
-});
-
-Given('{actor} selects the work {string}', async (actor: Author, title: string) => {
   await actor.attemptsTo(selectWorkInWindow(title));
 });
 

@@ -25,10 +25,23 @@ const button = (actor: Author, name: string) =>
 const field = (actor: Author, label: string) =>
   dialog(actor).getByRole('textbox', { name: label, exact: true });
 
-/** Picks an item in a Syncfusion drop-down list by its visible text. */
-async function choose(actor: Author, openWith: ReturnType<Page['locator']>, item: string) {
-  await openWith.click();
-  await page(actor).locator('.e-popup-open .e-list-item', { hasText: item }).first().click();
+/**
+ * Picks an item in a Syncfusion drop-down list by its visible text. The real input is read-only and out
+ * of the tab order, so the list is opened through the control's wrapper; a list inside a dialog that is
+ * still opening can swallow the first click, so the click is repeated until the list is open.
+ */
+async function choose(actor: Author, input: ReturnType<Page['locator']>, item: string) {
+  const wrapper = input.locator('xpath=ancestor::*[contains(@class,"e-input-group")][1]');
+  const list = page(actor).locator('.e-ddl.e-popup.e-popup-open');
+  for (let attempt = 0; attempt < 4 && !(await list.isVisible()); attempt++) {
+    await wrapper.click();
+    await list.waitFor({ timeout: 1_000 }).catch(() => undefined);
+  }
+  // The list fades in; a click that arrives while it does is lost, so the pointer rests on the item first.
+  const choice = list.locator('.e-list-item', { hasText: item }).first();
+  await choice.hover();
+  await page(actor).waitForTimeout(150);
+  await choice.click();
 }
 
 export const openTheWriter = (): Task => async (actor) => {
@@ -110,7 +123,7 @@ export const publishEditionInWindow =
       .locator(ui.editionNumber)
       .click();
     await button(actor, 'Publish').click();
-    await field(actor, 'Published on').fill(date);
+    await dialog(actor).getByRole('combobox', { name: 'Published on', exact: true }).fill(date);
     await dialog(actor).getByRole('button', { name: 'Publish', exact: true }).click();
   };
 
@@ -127,6 +140,7 @@ export const addOutlineNodeInWindow =
         })
         .first()
         .locator(ui.nodeTitle)
+        .first()
         .click();
     }
     await button(actor, 'Add section').click();
@@ -145,6 +159,7 @@ export const removeOutlineNodeInWindow =
       })
       .first()
       .locator(ui.nodeTitle)
+      .first()
       .click();
     await button(actor, 'Remove section').click();
     await dialog(actor).getByRole('button', { name: 'Remove', exact: true }).click();

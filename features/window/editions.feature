@@ -29,3 +29,14 @@ Feature: The Writer window - Editions
     When Ada publishes edition 1 on "2026-02-30" in the window
     Then a notice says "date"
     And the Editions panel shows edition 1 "First pass" as "draft"
+
+  Scenario: The catalog counts the Editions Ada adds
+    When Ada selects the work "The Salt Road"
+    And Ada adds an edition labelled "First pass" in the window
+    Then the catalog shows 1 edition for the work "The Salt Road"
+
+  Scenario: Publishing with no date does not reuse the last date typed
+    Given Ada has added the editions "First pass" and "Second pass" to the work "The Salt Road" in the window
+    When Ada publishes edition 1 on "2026-03-01" in the window
+    And Ada publishes edition 2 without a date in the window
+    Then the Editions panel shows edition 2 as published on a date other than "2026-03-01"

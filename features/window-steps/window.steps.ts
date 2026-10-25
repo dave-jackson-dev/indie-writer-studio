@@ -229,6 +229,47 @@ When(
   },
 );
 
+When(
+  '{actor} publishes edition {int} without a date in the window',
+  async (actor: Author, number: number) => {
+    await actor.attemptsTo(publishEditionInWindow(number));
+  },
+);
+
+Then(
+  'the Editions panel shows edition {int} as published on a date other than {string}',
+  async function (this: WriterWorld, number: number, date: string) {
+    const actor = this.findOrCreateActor('Ada') as Author;
+    await eventually(
+      () => actor.ask(theEditionRows()),
+      (rows) => {
+        const row = rows.find((candidate) => candidate.number === number);
+        assert.ok(
+          row?.status === 'published',
+          `Edition ${number} is not published: ${JSON.stringify(rows)}`,
+        );
+        assert.notEqual(row.publishedOn, date);
+      },
+    );
+  },
+);
+
+Then(
+  'the catalog shows {int} edition(s) for the work {string}',
+  async function (this: WriterWorld, count: number, title: string) {
+    const actor = this.findOrCreateActor('Ada') as Author;
+    await eventually(
+      () => actor.ask(theCatalogRows()),
+      (rows) =>
+        assert.equal(
+          rows.find((row) => row.title === title)?.editions,
+          count,
+          `Expected ${count} edition(s) for "${title}"; the catalog shows ${JSON.stringify(rows)}`,
+        ),
+    );
+  },
+);
+
 Then(
   'the Editions panel shows edition {int} {string} as {string}',
   async function (this: WriterWorld, number: number, label: string, status: string) {

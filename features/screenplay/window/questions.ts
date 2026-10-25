@@ -15,6 +15,7 @@ export interface CatalogRow {
   title: string;
   subtitle: string;
   status: string;
+  editions: number;
 }
 
 /** The rows of the catalog as Ada reads them, once the grid has settled. */
@@ -30,6 +31,7 @@ export const theCatalogRows =
         title: ((await row.locator(ui.workTitle).allInnerTexts())[0] ?? '').trim(),
         subtitle: ((await row.locator(ui.workSubtitle).allInnerTexts())[0] ?? '').trim(),
         status: ((await row.locator(ui.workStatus).allInnerTexts())[0] ?? '').trim(),
+        editions: Number(((await row.locator('td.e-rowcell').nth(3).innerText()) ?? '').trim()),
       });
     }
     return result;
@@ -44,6 +46,7 @@ export interface EditionRow {
   number: number;
   label: string;
   status: string;
+  publishedOn: string;
 }
 
 export const theEditionRows =
@@ -58,6 +61,7 @@ export const theEditionRows =
         number: Number(((await row.locator(ui.editionNumber).allInnerTexts())[0] ?? '').trim()),
         label: ((await row.locator(ui.editionLabel).allInnerTexts())[0] ?? '').trim(),
         status: ((await row.locator(ui.editionStatus).allInnerTexts())[0] ?? '').trim(),
+        publishedOn: ((await row.locator('td.e-rowcell').nth(3).innerText()) ?? '').trim(),
       });
     }
     return result;

@@ -113,7 +113,7 @@ export const addEditionInWindow =
   };
 
 export const publishEditionInWindow =
-  (number: number, date: string): Task =>
+  (number: number, date?: string): Task =>
   async (actor) => {
     await page(actor)
       .locator(ui.editionRow)
@@ -123,7 +123,9 @@ export const publishEditionInWindow =
       .locator(ui.editionNumber)
       .click();
     await button(actor, 'Publish').click();
-    await dialog(actor).getByRole('combobox', { name: 'Published on', exact: true }).fill(date);
+    if (date !== undefined) {
+      await dialog(actor).getByRole('combobox', { name: 'Published on', exact: true }).fill(date);
+    }
     await dialog(actor).getByRole('button', { name: 'Publish', exact: true }).click();
   };
 

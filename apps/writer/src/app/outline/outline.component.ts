@@ -145,8 +145,10 @@ export class OutlineComponent {
     effect(() => {
       const work = this.work();
       this.chosen.set(undefined);
-      if (work === undefined) this.rows.set([]);
-      else void this.load(work.id);
+      if (work === undefined) {
+        this.latest.begin();
+        this.rows.set([]);
+      } else void this.load(work.id);
     });
   }
 

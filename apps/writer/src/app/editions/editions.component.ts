@@ -153,8 +153,10 @@ export class EditionsComponent {
     effect(() => {
       const work = this.work();
       this.chosen.set(undefined);
-      if (work === undefined) this.editions.set([]);
-      else void this.load(work.id);
+      if (work === undefined) {
+        this.latest.begin();
+        this.editions.set([]);
+      } else void this.load(work.id);
     });
   }
 

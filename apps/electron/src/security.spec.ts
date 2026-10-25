@@ -26,13 +26,13 @@ describe('the content security policy', () => {
   });
 
   it('is the policy the shipped page declares, character for character', () => {
-    const page = readFileSync(join(here, 'renderer/index.html'), 'utf8');
+    const page = readFileSync(join(here, '../../writer/src/index.html'), 'utf8');
     const meta = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(page);
     expect(meta?.[1]).toBe(CONTENT_SECURITY_POLICY);
   });
 
   it('is declared by a page that loads no remote or inline script', () => {
-    const page = readFileSync(join(here, 'renderer/index.html'), 'utf8');
+    const page = readFileSync(join(here, '../../writer/src/index.html'), 'utf8');
     expect(page).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>[^<]/);
     expect(page).not.toMatch(/https?:\/\//);
   });

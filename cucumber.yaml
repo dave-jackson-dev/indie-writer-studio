@@ -3,7 +3,7 @@
 # the built binary: IWS_ASSEMBLY=cli|repl|sidecar|http (build indie-writer first).
 default:
   paths:
-    - features/**/*.feature
+    - features/*.feature
   import:
     - features/support/**/*.ts
     - features/steps/**/*.ts
@@ -19,5 +19,16 @@ cli:
   import:
     - features/support/**/*.ts
     - features/steps/**/*.ts
+  format:
+    - progress
+
+# The Writer window: the same author, driving the built Electron app through its page. Needs a display
+# (the launcher supplies xvfb) and `nx build electron` first; run with `npm run acceptance:window`.
+window:
+  paths:
+    - features/window/*.feature
+  import:
+    - features/window-support/**/*.ts
+    - features/window-steps/**/*.ts
   format:
     - progress

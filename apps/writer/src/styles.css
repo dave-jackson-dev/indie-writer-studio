@@ -1,0 +1,112 @@
+@import './generated/syncfusion-theme.css';
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f5f2;
+  --panel: #ffffff;
+  --text: #1c1b1f;
+  --muted: #55525c;
+  --border: #d3d0d8;
+  --accent: #3b4ba8;
+  --accent-text: #ffffff;
+  --selected: color-mix(in srgb, var(--accent) 16%, var(--panel));
+  --focus: #1f5fd1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17161a;
+    --panel: #212026;
+    --text: #ececf1;
+    --muted: #b4b1bd;
+    --border: #3b3a43;
+    --accent: #aab4ff;
+    --accent-text: #12122a;
+    --selected: color-mix(in srgb, var(--accent) 22%, var(--panel));
+    --focus: #8fb3ff;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Syncfusion's licence banner is never hidden (ADR-005); it moves to the footer and the page keeps clear of it. */
+.sf-license-validation-banner {
+  top: auto !important;
+  bottom: 10px !important;
+  z-index: 2147483647 !important;
+}
+
+body:has(> .sf-license-validation-banner) iw-root {
+  height: calc(100vh - 68px) !important;
+}
+
+iw-root {
+  display: block;
+  height: 100%;
+}
+
+/* Status badges: Syncfusion's badge, with the window's own colours so each reads at 4.5:1 or better. */
+.e-badge.iw-status {
+  background: var(--selected);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.e-badge.iw-status-in-progress,
+.e-badge.iw-status-published {
+  border-color: var(--accent);
+}
+.e-badge.iw-status-complete {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.iw-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.iw-muted {
+  color: var(--muted);
+}
+
+html body .e-dialog.e-popup-open {
+  max-height: calc(100vh - 164px) !important;
+}
+
+html body .e-dialog .e-dlg-content {
+  overflow: auto;
+}
+
+.iw-field {
+  display: block;
+  margin-bottom: 12px;
+}

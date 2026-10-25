@@ -57,7 +57,7 @@
     "@swc/helpers": "0.5.18",
     "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
-    "electron": "^44.9.0",
+    "electron": "^44.9.3",
     "esbuild": "^0.28.2",
     "nx": "24.0.0",
     "playwright-core": "1.64.1",
@@ -66,6 +66,19 @@
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "multer": "2.5.0",
+    "nx": {
+      "undici": "^7.30.1"
+    },
+    "@cucumber/cucumber": {
+      "tmp": "0.2.7"
+    },
+    "@cucumber/messages": {
+      "uuid": "^11.1.1"
+    },
+    "vite": "~8.3.5"
   },
   "workspaces": [
     "apps/*",

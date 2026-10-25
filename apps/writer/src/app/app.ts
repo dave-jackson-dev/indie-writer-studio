@@ -55,7 +55,7 @@ import { Notices } from './services/notices';
                     </e-pane>
                     <e-pane min="140px">
                       <ng-template #content>
-                        <iw-editions [work]="work()" />
+                        <iw-editions [work]="work()" (changed)="catalog().refresh()" />
                       </ng-template>
                     </e-pane>
                   </e-panes>
@@ -95,6 +95,7 @@ export class App implements OnChanges {
   private readonly notices = inject(Notices);
   protected readonly work = signal<WorkDto | undefined>(undefined);
   private readonly toast = viewChild.required<ToastComponent>('toast');
+  protected readonly catalog = viewChild.required(CatalogComponent);
 
   /**
    * Syncfusion's Angular wrappers extend a base class that has an `ngOnChanges` hook but no Angular

@@ -20,6 +20,7 @@ import { DialogModule, type DialogComponent } from '@syncfusion/ej2-angular-popu
 
 import type { WorkDto } from '../catalog/catalog';
 import { confirmDialog } from '../services/confirm';
+import { Latest } from '../services/latest';
 import { Notices } from '../services/notices';
 import { WriterApi } from '../services/writer-api';
 import { toTreeNodes, type TreeRow } from './outline-tree';
@@ -111,6 +112,7 @@ export class OutlineComponent {
   readonly work = input<WorkDto | undefined>(undefined);
 
   protected readonly kinds = KINDS;
+  private readonly latest = new Latest();
   private readonly rows = signal<TreeRow[]>([]);
   protected readonly generation = signal(0);
   protected readonly chosen = signal<string | undefined>(undefined);
@@ -149,8 +151,11 @@ export class OutlineComponent {
   }
 
   private async load(workId: string): Promise<void> {
+    const current = this.latest.begin();
     try {
-      this.rows.set(toTreeNodes(await this.api.outline(workId)));
+      const rows = toTreeNodes(await this.api.outline(workId));
+      if (!current()) return;
+      this.rows.set(rows);
       this.generation.update((n) => n + 1);
       this.chosen.set(undefined);
     } catch (error) {

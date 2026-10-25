@@ -191,6 +191,15 @@ export class CatalogComponent {
     void this.reload();
   }
 
+  /** Brings the rows up to date without changing the selection, for changes made in another panel. */
+  async refresh(): Promise<void> {
+    try {
+      this.works.set(await this.api.listWorks(this.filter() || undefined));
+    } catch (error) {
+      this.notices.failure(error);
+    }
+  }
+
   private async reload(): Promise<void> {
     try {
       this.works.set(await this.api.listWorks(this.filter() || undefined));

@@ -4,6 +4,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -14,6 +15,7 @@ import { ToolbarModule, type ClickEventArgs } from '@syncfusion/ej2-angular-navi
 import { DialogModule, type DialogComponent } from '@syncfusion/ej2-angular-popups';
 
 import type { EditionDto, WorkDto } from '../catalog/catalog';
+import { Latest } from '../services/latest';
 import { Notices } from '../services/notices';
 import { WriterApi } from '../services/writer-api';
 
@@ -126,6 +128,10 @@ export class EditionsComponent {
   /** The Work whose Editions are shown. */
   readonly work = input<WorkDto | undefined>(undefined);
 
+  /** Raised when an Edition was added or published, so the catalog can show the new count. */
+  readonly changed = output<void>();
+
+  private readonly latest = new Latest();
   protected readonly editions = signal<EditionDto[]>([]);
   protected readonly chosen = signal<EditionDto | undefined>(undefined);
   protected readonly label = signal('');
@@ -153,8 +159,10 @@ export class EditionsComponent {
   }
 
   private async load(workId: string): Promise<void> {
+    const current = this.latest.begin();
     try {
-      this.editions.set(await this.api.listEditions(workId));
+      const editions = await this.api.listEditions(workId);
+      if (current()) this.editions.set(editions);
     } catch (error) {
       this.notices.failure(error);
     }
@@ -168,8 +176,19 @@ export class EditionsComponent {
       this.addDialog().show();
     } else if (args.item.id === 'publish-edition') {
       if (this.chosen() === undefined) return this.notices.tell('Choose an edition to publish.');
+      this.clearPicker();
       this.publishDialog().show();
     }
+  }
+
+  /** The dialog is hidden, not destroyed, so it would otherwise offer the last date again. */
+  private clearPicker(): void {
+    const picker = this.picker();
+    if (picker === undefined) return;
+    // Syncfusion clears a picker by setting null, though its typings say Date.
+    picker.value = null as unknown as Date;
+    const input = picker.element.querySelector('input');
+    if (input !== null) input.value = '';
   }
 
   private async add(): Promise<void> {
@@ -179,6 +198,7 @@ export class EditionsComponent {
       await this.api.addEdition(work.id, this.label());
       this.addDialog().hide();
       await this.load(work.id);
+      this.changed.emit();
     } catch (error) {
       this.notices.failure(error);
     }
@@ -194,6 +214,7 @@ export class EditionsComponent {
       await this.api.publishEdition(work.id, edition.number, typed || undefined);
       this.publishDialog().hide();
       await this.load(work.id);
+      this.changed.emit();
     } catch (error) {
       this.notices.failure(error);
     }
